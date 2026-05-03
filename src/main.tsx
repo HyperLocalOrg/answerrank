@@ -187,15 +187,13 @@ function ScreenLanding({
   }
 
   function handleRecent(r: RecentSearch) {
-    setQuery(r.query);
-    if (r.url) {
-      setHasUrl(true);
-      setUrl(r.url);
-    } else {
-      setHasUrl(false);
-      setBrand(r.brandName || "");
-      setProduct(r.productName || r.product);
-    }
+    onSubmit({
+      productUrl: r.url || "",
+      brandName: r.brandName || "",
+      productName: r.productName || r.product,
+      targetQuery: r.query,
+      liveMode: liveMode,
+    });
   }
 
   return (
@@ -330,7 +328,7 @@ function ScreenLanding({
 
         {/* Footer stats */}
         <div className="ar-footer-stats">
-          {[["3", "AI Models"], ["~10s", "Response time"], ["12h", "Results cached"]].map(([n, l]) => (
+          {[["3", "AI Models"], ["~15s", "Response time"], ["12h", "Results cached"]].map(([n, l]) => (
             <div key={l} className="ar-footer-stat">
               <div className="ar-footer-stat-num">{n}</div>
               <div className="ar-footer-stat-label">{l}</div>
@@ -402,7 +400,7 @@ function ScreenLoading({ identifier }: { identifier: string }) {
               );
             })}
           </div>
-          <p className="ar-loading-note">This takes ~10 seconds · Cached 12 hours</p>
+          <p className="ar-loading-note">This takes ~15 seconds · Cached 12 hours</p>
         </div>
       </div>
     </div>
@@ -564,7 +562,6 @@ function Collapse({
 function ScreenResults({
   report,
   identifier,
-  refreshing,
   shareMessage,
   onNewReport,
   onShare,
@@ -573,7 +570,6 @@ function ScreenResults({
 }: {
   report: AuditReport;
   identifier: string;
-  refreshing: boolean;
   shareMessage: string;
   onNewReport: () => void;
   onShare: () => void;
@@ -655,9 +651,8 @@ function ScreenResults({
             className="ar-btn-ghost refresh-full"
             style={{ width: "100%", justifyContent: "center", fontSize: 12 }}
             onClick={onRefresh}
-            disabled={refreshing}
           >
-            <IcoRefresh />{refreshing ? "Refreshing…" : "Get Fresh Report"}
+            <IcoRefresh />Get Fresh Report
           </button>
         </aside>
 
@@ -809,7 +804,7 @@ function App() {
   const [identifier, setIdentifier] = useState("");
   const [error, setError] = useState("");
   const [shareMessage, setShareMessage] = useState("");
-  const [refreshing, setRefreshing] = useState(false);
+
   const [recentSearches, setRecentSearches] = useState<RecentSearch[]>(() => loadRecentFromStorage());
 
   useEffect(() => {
@@ -865,15 +860,19 @@ function App() {
   }
 
   async function handleRefresh() {
-    setRefreshing(true);
+    setError("");
+    setShareMessage("");
+    setScreen("loading");
+    const minWait = new Promise<void>(r => setTimeout(r, 4800));
     try {
       const result = await runAudit({ ...input, liveMode: true, forceRefresh: true });
+      await minWait;
       setReport(result);
+      setScreen("results");
     } catch (err) {
-      setShareMessage(err instanceof Error ? err.message : "Refresh failed.");
-      setTimeout(() => setShareMessage(""), 3000);
-    } finally {
-      setRefreshing(false);
+      await minWait;
+      setError(err instanceof Error ? err.message : "Refresh failed.");
+      setScreen("results");
     }
   }
 
@@ -899,7 +898,6 @@ function App() {
         <ScreenResults
           report={report}
           identifier={identifier}
-          refreshing={refreshing}
           shareMessage={shareMessage}
           onNewReport={() => setScreen("landing")}
           onShare={handleShare}

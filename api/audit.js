@@ -803,6 +803,7 @@ async function saveReport(report, cacheKey) {
       brand_name: report.product.brandName,
       product_name: report.product.productName,
       target_query: report.targetQuery,
+      created_at: report.createdAt,
       report,
     }),
   });
@@ -846,15 +847,11 @@ async function getCachedReport(cacheKey) {
 }
 
 async function makeCacheKey(input) {
-  const normalized = [
-    input.productUrl,
-    input.brandName,
-    input.productName,
-    input.targetQuery,
-    input.productCopy,
-  ]
-    .map((value) => String(value || "").trim().toLowerCase().replace(/\s+/g, " "))
-    .join("|");
+  const n = (v) => String(v || "").trim().toLowerCase().replace(/\s+/g, " ");
+  // If a URL is provided use it as the primary identity; ignore brand/product which
+  // the client leaves empty when entering via URL mode. If no URL, use brand+product.
+  const identity = n(input.productUrl) || `${n(input.brandName)}|${n(input.productName)}`;
+  const normalized = [identity, n(input.targetQuery), n(input.productCopy)].join("|");
 
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(normalized));
   return Array.from(new Uint8Array(digest))
