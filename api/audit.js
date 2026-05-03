@@ -171,11 +171,14 @@ async function queryModels(product, queries, input) {
   const primaryQuery = queries[0];
   const jobs = [];
 
-  if (process.env.OPENAI_API_KEY) {
-    jobs.push(queryOpenAI(product, primaryQuery, input));
-  }
   if (process.env.GEMINI_API_KEY) {
     jobs.push(queryGemini(product, primaryQuery, input));
+  }
+  if (process.env.GROQ_API_KEY) {
+    jobs.push(queryGroq(product, primaryQuery, input));
+  }
+  if (process.env.OPENAI_API_KEY) {
+    jobs.push(queryOpenAI(product, primaryQuery, input));
   }
 
   if (!jobs.length) return fallbackModelResults(product, primaryQuery);
@@ -222,6 +225,28 @@ async function queryGemini(product, query, input) {
   if (!response.ok) throw new Error(`Gemini request failed: ${response.status}`);
   const data = await response.json();
   return normalizeModelResult("Gemini", query, data?.candidates?.[0]?.content?.parts?.[0]?.text || "{}");
+}
+
+async function queryGroq(product, query, input) {
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: process.env.GROQ_MODEL || "llama-3.1-8b-instant",
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: "Return strict JSON only. You are an ecommerce AI visibility analyst." },
+        { role: "user", content: modelPrompt(product, query, input) },
+      ],
+      temperature: 0.2,
+    }),
+  });
+  if (!response.ok) throw new Error(`Groq request failed: ${response.status}`);
+  const data = await response.json();
+  return normalizeModelResult("Groq Llama", query, data?.choices?.[0]?.message?.content || "{}");
 }
 
 function modelPrompt(product, query, input) {

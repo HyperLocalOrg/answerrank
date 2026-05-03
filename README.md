@@ -31,6 +31,7 @@ Live mode supports:
 
 - OpenAI API for model visibility analysis
 - Gemini API for a second AI engine perspective
+- Groq API for a low-cost Llama-based second model
 - Firecrawl API for product page scraping
 - Supabase for saved shareable reports
 - Vercel serverless functions for secure API calls
@@ -116,6 +117,7 @@ Create environment variables in Vercel for live API mode:
 ```txt
 OPENAI_API_KEY=...
 GEMINI_API_KEY=...
+GROQ_API_KEY=...
 FIRECRAWL_API_KEY=...
 SUPABASE_URL=...
 SUPABASE_SERVICE_ROLE_KEY=...
@@ -126,9 +128,10 @@ Optional model overrides:
 ```txt
 OPENAI_MODEL=gpt-4o-mini
 GEMINI_MODEL=gemini-1.5-flash
+GROQ_MODEL=llama-3.1-8b-instant
 ```
 
-Do not expose LLM keys as `VITE_` browser variables in production. Live mode calls `/api/audit`, and the serverless function calls OpenAI, Gemini, Firecrawl, and Supabase securely.
+For a near-free deployment, use `GEMINI_API_KEY` + `GROQ_API_KEY` and leave `OPENAI_API_KEY` empty. Do not expose LLM keys as `VITE_` browser variables in production. Live mode calls `/api/audit`, and the serverless function calls Gemini, Groq, optional OpenAI, Firecrawl, and Supabase securely.
 
 ## Low-Cost Production Setup
 
@@ -143,11 +146,14 @@ Supabase
   - stores generated report JSON
   - enables short share links like /?reportId=<uuid>
 
-OpenAI
-  - cheap model for structured analysis, default gpt-4o-mini
-
 Gemini
-  - cheap second model, default gemini-1.5-flash
+  - primary low-cost model, default gemini-1.5-flash
+
+Groq
+  - secondary low-cost Llama model, default llama-3.1-8b-instant
+
+OpenAI
+  - optional model for stronger analysis, default gpt-4o-mini
 
 Firecrawl
   - scrapes product pages when a URL is provided

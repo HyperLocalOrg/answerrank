@@ -39,7 +39,7 @@ function App() {
     const liveReady = input.liveMode;
     return [
       { name: "Vercel API", present: liveReady },
-      { name: "OpenAI/Gemini", present: liveReady },
+      { name: "Gemini/Groq", present: liveReady },
       { name: "Supabase reports", present: liveReady },
     ];
   }, [input.liveMode]);
