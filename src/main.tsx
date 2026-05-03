@@ -21,6 +21,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [shareMessage, setShareMessage] = useState("");
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   useEffect(() => {
     const reportId = readReportIdFromUrl();
@@ -46,6 +47,15 @@ function App() {
 
   async function handleRunAudit(event: React.FormEvent) {
     event.preventDefault();
+    const hasUrl = Boolean(input.productUrl.trim());
+    const hasBrandAndProduct = Boolean(input.brandName?.trim() && input.productName?.trim());
+
+    if (!hasUrl && !hasBrandAndProduct) {
+      setAdvancedOpen(true);
+      setError("Add a product URL, or enter both brand and product name in Advanced.");
+      return;
+    }
+
     await executeAudit(input);
   }
 
@@ -97,65 +107,51 @@ function App() {
             <input
               value={input.productUrl}
               onChange={(event) => setInput({ ...input, productUrl: event.target.value })}
-              placeholder="https://amazon.com/..."
+              placeholder="https://amazon.com/... or use brand + product below"
             />
           </label>
-          <div className="two-col">
-            <label>
-              Brand
-              <input
-                value={input.brandName}
-                onChange={(event) => setInput({ ...input, brandName: event.target.value })}
-                placeholder="CalmLeaf"
-                required
-              />
-            </label>
-            <label>
-              Product
-              <input
-                value={input.productName}
-                onChange={(event) => setInput({ ...input, productName: event.target.value })}
-                placeholder="Magnesium Glycinate 200mg"
-                required
-              />
-            </label>
-          </div>
-          <div className="two-col">
-            <label>
-              Category
-              <input
-                value={input.category}
-                onChange={(event) => setInput({ ...input, category: event.target.value })}
-                placeholder="Supplements"
-              />
-            </label>
-            <label>
-              Target buyer query
-              <input
-                value={input.targetQuery}
-                onChange={(event) => setInput({ ...input, targetQuery: event.target.value })}
-                placeholder="best magnesium supplement for seniors"
-                required
-              />
-            </label>
-          </div>
+          <p className="field-hint">Use a product URL, or open Advanced and enter both brand and product name.</p>
           <label>
-            Competitors
+            Target buyer query
             <input
-              value={input.competitors}
-              onChange={(event) => setInput({ ...input, competitors: event.target.value })}
-              placeholder="Nature Made, Doctor's Best, NOW Foods"
+              value={input.targetQuery}
+              onChange={(event) => setInput({ ...input, targetQuery: event.target.value })}
+              placeholder="best magnesium supplement for seniors"
+              required
             />
           </label>
-          <label>
-            Product copy fallback
-            <textarea
-              value={input.productCopy}
-              onChange={(event) => setInput({ ...input, productCopy: event.target.value })}
-              placeholder="Paste title, bullets, description, reviews, claims, or specs."
-              rows={5}
-            />
-          </label>
+          <details className="advanced-options" open={advancedOpen} onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}>
+            <summary>Advanced: use brand + product instead</summary>
+            <div className="advanced-fields">
+              <div className="two-col">
+                <label>
+                  Brand name
+                  <input
+                    value={input.brandName || ""}
+                    onChange={(event) => setInput({ ...input, brandName: event.target.value })}
+                    placeholder="CalmLeaf"
+                  />
+                </label>
+                <label>
+                  Product name
+                  <input
+                    value={input.productName || ""}
+                    onChange={(event) => setInput({ ...input, productName: event.target.value })}
+                    placeholder="Magnesium Glycinate 200mg"
+                  />
+                </label>
+              </div>
+              <label>
+                Product copy fallback
+                <textarea
+                  value={input.productCopy || ""}
+                  onChange={(event) => setInput({ ...input, productCopy: event.target.value })}
+                  placeholder="Optional: paste listing text if scraping misses key details."
+                  rows={4}
+                />
+              </label>
+            </div>
+          </details>
 
           <div className="form-footer">
             <label className="switch-row">

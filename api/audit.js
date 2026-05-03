@@ -76,7 +76,7 @@ export default async function handler(req, res) {
 
 async function createReport(input) {
   const product = await scrapeProduct(input);
-  const generatedQueries = generateBuyerQueries(input.targetQuery, input.category);
+  const generatedQueries = generateBuyerQueries(input.targetQuery, product.category);
   const modelResults = await queryModels(product, generatedQueries, input);
   const coverage = calculateCoverage(product, modelResults);
   const scores = calculateAeoScore(product, modelResults, coverage);
@@ -103,11 +103,6 @@ async function createReport(input) {
 }
 
 async function scrapeProduct(input) {
-  const competitors = String(input.competitors || "")
-    .split(/,|\n/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-
   let scrapedText = "";
 
   if (process.env.FIRECRAWL_API_KEY && input.productUrl) {
@@ -140,16 +135,57 @@ async function scrapeProduct(input) {
     .map((line) => line.trim().replace(/\.$/, ""))
     .filter(Boolean);
 
+  const inferredProduct = inferProductName(input, sentences);
+  const inferredBrand = inferBrandName(input, inferredProduct);
+
   return {
     url: input.productUrl || undefined,
-    brandName: input.brandName || "Unknown brand",
-    productName: input.productName || input.brandName || "Unknown product",
-    category: input.category || "Ecommerce",
-    title: input.productName || sentences[0] || input.brandName || "Unknown product",
+    brandName: inferredBrand,
+    productName: inferredProduct,
+    category: inferCategory(input.targetQuery, combinedCopy),
+    title: inferredProduct,
     bullets: sentences.slice(0, 5),
-    description: combinedCopy || `${input.productName || "Product"} by ${input.brandName || "brand"}`,
-    competitors,
+    description: combinedCopy || `${inferredProduct} by ${inferredBrand}`,
+    competitors: [],
   };
+}
+
+function inferProductName(input, sentences) {
+  if (input.productName) return String(input.productName).trim();
+  if (sentences[0]) return sentences[0].slice(0, 140);
+  try {
+    if (!input.productUrl) return "Audited product";
+    const url = new URL(input.productUrl);
+    const slug = url.pathname
+      .split("/")
+      .filter(Boolean)
+      .find((part) => part.length > 8 && !["dp", "gp", "product"].includes(part.toLowerCase()));
+    if (slug) return titleCase(slug.replace(/[-_]+/g, " ").slice(0, 120));
+  } catch {
+    return "Audited product";
+  }
+  return "Audited product";
+}
+
+function inferBrandName(input, productName) {
+  if (input.brandName) return String(input.brandName).trim();
+  const words = productName.split(/\s+/).filter(Boolean);
+  return words.slice(0, Math.min(2, words.length)).join(" ") || "Audited brand";
+}
+
+function inferCategory(query, text) {
+  const haystack = `${query || ""} ${text || ""}`.toLowerCase();
+  if (/supplement|vitamin|magnesium|collagen|protein|gummies|capsule/.test(haystack)) return "Supplements";
+  if (/skincare|serum|cream|shampoo|soap|beauty|makeup/.test(haystack)) return "Beauty & Personal Care";
+  if (/dog|cat|pet|puppy|kitten/.test(haystack)) return "Pet Supplies";
+  if (/baby|toddler|stroller|monitor|diaper/.test(haystack)) return "Baby Products";
+  if (/desk|chair|lamp|kitchen|home|mattress/.test(haystack)) return "Home & Kitchen";
+  if (/headphone|camera|charger|laptop|monitor|electronics/.test(haystack)) return "Electronics";
+  return "Ecommerce";
+}
+
+function titleCase(value) {
+  return value.replace(/\w\S*/g, (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
 }
 
 function generateBuyerQueries(seed, category) {
@@ -260,7 +296,7 @@ Category: ${product.category}
 Product context:
 ${product.description.slice(0, 7000)}
 Competitors:
-${product.competitors.join(", ") || input.competitors || "unknown"}
+Infer likely competitors from the buyer query, category, and your shopping knowledge. Do not require user-provided competitors.
 
 Return JSON with:
 brandMentioned boolean,
@@ -314,7 +350,7 @@ function fallbackModelResults(product, query) {
       brandMentioned: mentioned,
       rankPosition: mentioned ? 3 : null,
       recommendationStrength: mentioned ? "positive" : "weak",
-      mentionedCompetitors: product.competitors.slice(0, 3),
+      mentionedCompetitors: inferFallbackCompetitors(product.category),
       buyerCriteria: [
         "third-party testing",
         "clear product form",
@@ -577,9 +613,7 @@ async function makeCacheKey(input) {
     input.productUrl,
     input.brandName,
     input.productName,
-    input.category,
     input.targetQuery,
-    input.competitors,
     input.productCopy,
   ]
     .map((value) => String(value || "").trim().toLowerCase().replace(/\s+/g, " "))
@@ -589,6 +623,18 @@ async function makeCacheKey(input) {
   return Array.from(new Uint8Array(digest))
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");
+}
+
+function inferFallbackCompetitors(category) {
+  const competitorsByCategory = {
+    Supplements: ["Nature Made", "Doctor's Best", "Pure Encapsulations"],
+    "Beauty & Personal Care": ["CeraVe", "Neutrogena", "The Ordinary"],
+    "Pet Supplies": ["Burt's Bees for Pets", "Earthbath", "TropiClean"],
+    "Baby Products": ["Nanit", "VTech", "Infant Optics"],
+    "Home & Kitchen": ["Amazon Basics", "IKEA", "Uplift Desk"],
+    Electronics: ["Anker", "Sony", "Logitech"],
+  };
+  return competitorsByCategory[category] || ["Category leader", "Top-rated competitor", "Established brand"];
 }
 
 function scoreStatus(score) {

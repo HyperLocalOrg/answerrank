@@ -2,13 +2,10 @@ import type { AuditInput, AuditReport } from "../types";
 
 export const sampleInput: AuditInput = {
   productUrl: "https://www.amazon.com/example-magnesium-glycinate",
-  brandName: "CalmLeaf",
-  productName: "CalmLeaf Magnesium Glycinate 200mg",
-  category: "Supplements",
+  brandName: "",
+  productName: "",
   targetQuery: "best magnesium supplement for seniors",
-  competitors: "Nature Made, Doctor's Best, Pure Encapsulations, NOW Foods",
-  productCopy:
-    "CalmLeaf Magnesium Glycinate 200mg supports sleep, muscle relaxation, and daily wellness. Easy-to-swallow capsules. Non-GMO. 120 capsules per bottle. Suggested use: take two capsules daily.",
+  productCopy: "",
   liveMode: false,
 };
 

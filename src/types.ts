@@ -1,11 +1,9 @@
 export type AuditInput = {
   productUrl: string;
-  brandName: string;
-  productName: string;
-  category: string;
+  brandName?: string;
+  productName?: string;
   targetQuery: string;
-  competitors: string;
-  productCopy: string;
+  productCopy?: string;
   liveMode: boolean;
   forceRefresh?: boolean;
 };

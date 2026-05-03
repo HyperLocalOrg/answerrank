@@ -56,7 +56,7 @@ export async function runAudit(input: AuditInput): Promise<AuditReport> {
   if (apiReport) return apiReport;
 
   const product = await scrapeProduct(input);
-  const generatedQueries = generateBuyerQueries(input.targetQuery, input.category);
+  const generatedQueries = generateBuyerQueries(input.targetQuery, product.category);
   const modelResults = await queryModels(product, generatedQueries, input);
   const coverage = calculateCoverage(product, modelResults);
   const scores = calculateAeoScore(product, modelResults, coverage);
@@ -107,11 +107,6 @@ async function runBackendAudit(input: AuditInput): Promise<AuditReport | null> {
 }
 
 async function scrapeProduct(input: AuditInput): Promise<ProductContext> {
-  const competitors = input.competitors
-    .split(/,|\n/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-
   let scrapedText = "";
   const firecrawlKey = import.meta.env.VITE_FIRECRAWL_API_KEY as string | undefined;
 
@@ -139,22 +134,63 @@ async function scrapeProduct(input: AuditInput): Promise<ProductContext> {
     }
   }
 
-  const combinedCopy = [input.productCopy, scrapedText].filter(Boolean).join("\n\n").trim();
+  const combinedCopy = [input.productCopy || "", scrapedText].filter(Boolean).join("\n\n").trim();
   const sentences = combinedCopy
     .split(/\n|\. /)
     .map((line) => line.trim().replace(/\.$/, ""))
     .filter(Boolean);
 
+  const inferredProduct = inferProductName(input, sentences);
+  const inferredBrand = inferBrandName(input, inferredProduct);
+
   return {
     url: input.productUrl || undefined,
-    brandName: input.brandName,
-    productName: input.productName || input.brandName,
-    category: input.category || "Ecommerce",
-    title: input.productName || sentences[0] || input.brandName,
+    brandName: inferredBrand,
+    productName: inferredProduct,
+    category: inferCategory(input.targetQuery, combinedCopy),
+    title: inferredProduct,
     bullets: sentences.slice(0, 5),
-    description: combinedCopy || `${input.productName} by ${input.brandName}`,
-    competitors,
+    description: combinedCopy || `${inferredProduct} by ${inferredBrand}`,
+    competitors: [],
   };
+}
+
+function inferProductName(input: AuditInput, sentences: string[]): string {
+  if (input.productName) return input.productName.trim();
+  if (sentences[0]) return sentences[0].slice(0, 140);
+  try {
+    if (!input.productUrl) return "Audited product";
+    const url = new URL(input.productUrl);
+    const slug = url.pathname
+      .split("/")
+      .filter(Boolean)
+      .find((part) => part.length > 8 && !["dp", "gp", "product"].includes(part.toLowerCase()));
+    if (slug) return titleCase(slug.replace(/[-_]+/g, " ").slice(0, 120));
+  } catch {
+    return "Audited product";
+  }
+  return "Audited product";
+}
+
+function inferBrandName(input: AuditInput, productName: string): string {
+  if (input.brandName) return input.brandName.trim();
+  const words = productName.split(/\s+/).filter(Boolean);
+  return words.slice(0, Math.min(2, words.length)).join(" ") || "Audited brand";
+}
+
+function inferCategory(query: string, text: string): string {
+  const haystack = `${query || ""} ${text || ""}`.toLowerCase();
+  if (/supplement|vitamin|magnesium|collagen|protein|gummies|capsule/.test(haystack)) return "Supplements";
+  if (/skincare|serum|cream|shampoo|soap|beauty|makeup/.test(haystack)) return "Beauty & Personal Care";
+  if (/dog|cat|pet|puppy|kitten/.test(haystack)) return "Pet Supplies";
+  if (/baby|toddler|stroller|monitor|diaper/.test(haystack)) return "Baby Products";
+  if (/desk|chair|lamp|kitchen|home|mattress/.test(haystack)) return "Home & Kitchen";
+  if (/headphone|camera|charger|laptop|monitor|electronics/.test(haystack)) return "Electronics";
+  return "Ecommerce";
+}
+
+function titleCase(value: string): string {
+  return value.replace(/\w\S*/g, (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
 }
 
 function generateBuyerQueries(seed: string, category: string): string[] {
@@ -261,7 +297,7 @@ Category: ${product.category}
 Product context:
 ${product.description}
 Competitors:
-${product.competitors.join(", ") || input.competitors || "unknown"}
+Infer likely competitors from the buyer query, category, and your shopping knowledge. Do not require user-provided competitors.
 
 Return JSON with:
 brandMentioned boolean,
@@ -318,7 +354,7 @@ function fallbackModelResults(product: ProductContext, query: string): ModelResu
       brandMentioned: mentioned,
       rankPosition: mentioned ? 3 : null,
       recommendationStrength: mentioned ? "positive" : "weak",
-      mentionedCompetitors: product.competitors.slice(0, 3),
+      mentionedCompetitors: inferFallbackCompetitors(product.category),
       buyerCriteria: [
         "third-party testing",
         "clear product form",
@@ -339,6 +375,18 @@ function fallbackModelResults(product: ProductContext, query: string): ModelResu
         "This simulator checks the listing for the same kinds of signals AI shopping assistants tend to surface: proof, clarity, safety, differentiation, and review trust.",
     },
   ];
+}
+
+function inferFallbackCompetitors(category: string): string[] {
+  const competitorsByCategory: Record<string, string[]> = {
+    Supplements: ["Nature Made", "Doctor's Best", "Pure Encapsulations"],
+    "Beauty & Personal Care": ["CeraVe", "Neutrogena", "The Ordinary"],
+    "Pet Supplies": ["Burt's Bees for Pets", "Earthbath", "TropiClean"],
+    "Baby Products": ["Nanit", "VTech", "Infant Optics"],
+    "Home & Kitchen": ["Amazon Basics", "IKEA", "Uplift Desk"],
+    Electronics: ["Anker", "Sony", "Logitech"],
+  };
+  return competitorsByCategory[category] || ["Category leader", "Top-rated competitor", "Established brand"];
 }
 
 function calculateCoverage(product: ProductContext, results: ModelResult[]): CoverageItem[] {

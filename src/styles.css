@@ -115,6 +115,32 @@ button:disabled {
   margin-top: 28px;
 }
 
+.advanced-options {
+  border: 1px solid #e6dfd2;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.advanced-options summary {
+  color: #38433c;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.advanced-fields {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.field-hint {
+  color: #687167;
+  font-size: 12px;
+  font-weight: 650;
+  margin: -8px 0 0;
+}
+
 label {
   display: grid;
   gap: 7px;
