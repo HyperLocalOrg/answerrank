@@ -21,7 +21,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [shareMessage, setShareMessage] = useState("");
-  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [inputMode, setInputMode] = useState<"url" | "manual">("url");
 
   useEffect(() => {
     const reportId = readReportIdFromUrl();
@@ -47,12 +47,16 @@ function App() {
 
   async function handleRunAudit(event: React.FormEvent) {
     event.preventDefault();
-    const hasUrl = Boolean(input.productUrl.trim());
+    const hasUrl = Boolean(input.productUrl?.trim());
     const hasBrandAndProduct = Boolean(input.brandName?.trim() && input.productName?.trim());
 
-    if (!hasUrl && !hasBrandAndProduct) {
-      setAdvancedOpen(true);
-      setError("Add a product URL, or enter both brand and product name in Advanced.");
+    if (inputMode === "url" && !hasUrl) {
+      setError("Add a product URL, or switch to Brand + Product mode.");
+      return;
+    }
+
+    if (inputMode === "manual" && !hasBrandAndProduct) {
+      setError("Enter both brand name and product name, or switch to URL mode.");
       return;
     }
 
@@ -102,15 +106,56 @@ function App() {
         </div>
 
         <form className="audit-form" onSubmit={handleRunAudit}>
-          <label>
-            Product URL
-            <input
-              value={input.productUrl}
-              onChange={(event) => setInput({ ...input, productUrl: event.target.value })}
-              placeholder="https://amazon.com/... or use brand + product below"
-            />
-          </label>
-          <p className="field-hint">Use a product URL, or open Advanced and enter both brand and product name.</p>
+          <div className="segmented-control" aria-label="Product input mode">
+            <button
+              type="button"
+              className={inputMode === "url" ? "active" : ""}
+              onClick={() => setInputMode("url")}
+            >
+              I have a URL
+            </button>
+            <button
+              type="button"
+              className={inputMode === "manual" ? "active" : ""}
+              onClick={() => setInputMode("manual")}
+            >
+              No URL
+            </button>
+          </div>
+
+          {inputMode === "url" ? (
+            <label>
+              Product URL
+              <input
+                value={input.productUrl || ""}
+                onChange={(event) => setInput({ ...input, productUrl: event.target.value })}
+                placeholder="https://amazon.com/..."
+                required
+              />
+            </label>
+          ) : (
+            <div className="two-col">
+              <label>
+                Brand name
+                <input
+                  value={input.brandName || ""}
+                  onChange={(event) => setInput({ ...input, brandName: event.target.value })}
+                  placeholder="CalmLeaf"
+                  required
+                />
+              </label>
+              <label>
+                Product name
+                <input
+                  value={input.productName || ""}
+                  onChange={(event) => setInput({ ...input, productName: event.target.value })}
+                  placeholder="Magnesium Glycinate 200mg"
+                  required
+                />
+              </label>
+            </div>
+          )}
+
           <label>
             Target buyer query
             <input
@@ -120,38 +165,6 @@ function App() {
               required
             />
           </label>
-          <details className="advanced-options" open={advancedOpen} onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}>
-            <summary>Advanced: use brand + product instead</summary>
-            <div className="advanced-fields">
-              <div className="two-col">
-                <label>
-                  Brand name
-                  <input
-                    value={input.brandName || ""}
-                    onChange={(event) => setInput({ ...input, brandName: event.target.value })}
-                    placeholder="CalmLeaf"
-                  />
-                </label>
-                <label>
-                  Product name
-                  <input
-                    value={input.productName || ""}
-                    onChange={(event) => setInput({ ...input, productName: event.target.value })}
-                    placeholder="Magnesium Glycinate 200mg"
-                  />
-                </label>
-              </div>
-              <label>
-                Product copy fallback
-                <textarea
-                  value={input.productCopy || ""}
-                  onChange={(event) => setInput({ ...input, productCopy: event.target.value })}
-                  placeholder="Optional: paste listing text if scraping misses key details."
-                  rows={4}
-                />
-              </label>
-            </div>
-          </details>
 
           <div className="form-footer">
             <label className="switch-row">

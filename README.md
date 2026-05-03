@@ -14,7 +14,7 @@ Amazon and Shopify sellers already optimize product pages for marketplace search
 
 AnswerRank runs an AI visibility audit for a product and buyer-intent query. It compares model responses, extracts buyer criteria, scores the product, and turns the diagnosis into listing improvements.
 
-The main user flow asks for a target buyer query plus either a product URL or a brand/product name pair. Category and competitors are inferred from the query, scraped page, and AI model responses. Optional product copy exists only for cases where scraping misses key details.
+The main user flow asks whether the seller has a product URL. If yes, they paste the URL. If not, they enter brand and product name. Category and competitors are inferred from the query, scraped page, and AI model responses.
 
 The product is designed for ecommerce operators, not researchers. The output is an executive report with:
 

@@ -115,30 +115,25 @@ button:disabled {
   margin-top: 28px;
 }
 
-.advanced-options {
-  border: 1px solid #e6dfd2;
+.segmented-control {
+  background: #ece6dc;
+  border: 1px solid #ded8cb;
   border-radius: 8px;
-  padding: 12px;
-}
-
-.advanced-options summary {
-  color: #38433c;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.advanced-fields {
   display: grid;
-  gap: 14px;
-  margin-top: 14px;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
 }
 
-.field-hint {
-  color: #687167;
-  font-size: 12px;
-  font-weight: 650;
-  margin: -8px 0 0;
+.segmented-control button {
+  background: transparent;
+  color: #536156;
+  min-height: 38px;
+}
+
+.segmented-control button.active {
+  background: #143d2a;
+  color: white;
 }
 
 label {
