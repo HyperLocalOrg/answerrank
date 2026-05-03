@@ -14,12 +14,12 @@ import "./styles.css";
 
 // ── Score labels ─────────────────────────────────────────────────────────────
 const SCORE_LABELS: { key: keyof ScoreBreakdown; label: string }[] = [
-  { key: "mentionVisibility",          label: "Mention Visibility"       },
-  { key: "rankingPosition",            label: "Ranking Position"         },
-  { key: "trustSignalCoverage",        label: "Trust Coverage"           },
-  { key: "competitiveDifferentiation", label: "Differentiation"          },
-  { key: "sentiment",                  label: "Recommendation Strength"  },
-  { key: "contentReadiness",           label: "Content Readiness"        },
+  { key: "mentionVisibility", label: "Mention Visibility" },
+  { key: "rankingPosition", label: "Ranking Position" },
+  { key: "trustSignalCoverage", label: "Trust Coverage" },
+  { key: "competitiveDifferentiation", label: "Differentiation" },
+  { key: "sentiment", label: "Recommendation Strength" },
+  { key: "contentReadiness", label: "Content Readiness" },
 ];
 
 type RecentSearch = {
@@ -61,59 +61,59 @@ const COLORS = { blue: "#2563EB", green: "#059669", red: "#DC2626", amber: "#D97
 // ── Icons ─────────────────────────────────────────────────────────────────────
 const IcoTrophy = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="8 15 4 15 4 8 8 8"/><polyline points="16 15 20 15 20 8 16 8"/>
-    <rect x="8" y="4" width="8" height="11" rx="1"/>
-    <line x1="12" y1="15" x2="12" y2="19"/><line x1="9" y1="19" x2="15" y2="19"/>
+    <polyline points="8 15 4 15 4 8 8 8" /><polyline points="16 15 20 15 20 8 16 8" />
+    <rect x="8" y="4" width="8" height="11" rx="1" />
+    <line x1="12" y1="15" x2="12" y2="19" /><line x1="9" y1="19" x2="15" y2="19" />
   </svg>
 );
 const IcoSearch = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
   </svg>
 );
 const IcoRefresh = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+    <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
   </svg>
 );
 const IcoShare = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13"/>
+    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13" />
   </svg>
 );
 const IcoDownload = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
   </svg>
 );
 const IcoClock = () => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+    <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
   </svg>
 );
 const IcoZap = () => (
   <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
-    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
   </svg>
 );
 const IcoCheck = ({ size = 13 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="20 6 9 17 4 12"/>
+    <polyline points="20 6 9 17 4 12" />
   </svg>
 );
 const IcoX = ({ size = 13 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
   </svg>
 );
 const IcoSpinner = () => (
   <svg className="ar-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
   </svg>
 );
 const IcoChevron = ({ up }: { up: boolean }) => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d={up ? "M18 15l-6-6-6 6" : "M6 9l6 6 6-6"}/>
+    <path d={up ? "M18 15l-6-6-6 6" : "M6 9l6 6 6-6"} />
   </svg>
 );
 
@@ -167,7 +167,7 @@ function ScreenLanding({
   const [brand, setBrand] = useState("");
   const [product, setProduct] = useState("");
   const [query, setQuery] = useState("");
-  const [liveMode, setLiveMode] = useState(false);
+  const [liveMode, setLiveMode] = useState(true);
   const [focused, setFocused] = useState<string | null>(null);
 
   const canSubmit =
@@ -178,8 +178,8 @@ function ScreenLanding({
     e.preventDefault();
     if (!canSubmit) return;
     onSubmit({
-      productUrl:  hasUrl ? url.trim() : undefined,
-      brandName:   !hasUrl ? brand.trim()   : undefined,
+      productUrl: hasUrl ? url.trim() : undefined,
+      brandName: !hasUrl ? brand.trim() : undefined,
       productName: !hasUrl ? product.trim() : undefined,
       targetQuery: query.trim(),
       liveMode,
@@ -222,7 +222,7 @@ function ScreenLanding({
           {/* Toggle */}
           <div className="ar-toggle-row">
             {([
-              { val: true,  icon: "🔗", label: "I have a product URL" },
+              { val: true, icon: "🔗", label: "I have a product URL" },
               { val: false, icon: "✏️", label: "Enter brand & product" },
             ] as const).map(({ val, icon, label }) => (
               <button
@@ -290,7 +290,7 @@ function ScreenLanding({
             </div>
 
             {error && <p className="ar-error">{error}</p>}
-
+            <div style={{ height: 3 }} />
             <button
               type="submit"
               className="ar-btn-primary"
@@ -301,14 +301,14 @@ function ScreenLanding({
               Generate Report
             </button>
 
-            <label className="ar-live-row">
+            {/* <label className="ar-live-row">
               <input
                 type="checkbox"
                 checked={liveMode}
                 onChange={e => setLiveMode(e.target.checked)}
               />
               Use live APIs (requires API keys)
-            </label>
+            </label> */}
           </form>
         </div>
 
@@ -345,8 +345,8 @@ function ScreenLanding({
 
 // ── Loading ───────────────────────────────────────────────────────────────────
 const LOADING_MODELS = [
-  { name: "GPT-4o",    label: "OpenAI" },
-  { name: "Gemini",    label: "Google" },
+  { name: "GPT-4o", label: "OpenAI" },
+  { name: "Gemini", label: "Google" },
   { name: "AI Search", label: "Perplexity / SearchGPT" },
 ];
 
@@ -382,12 +382,12 @@ function ScreenLoading({ identifier }: { identifier: string }) {
           </div>
           <div className="ar-model-list">
             {LOADING_MODELS.map((m, i) => {
-              const done   = step > i + 1;
+              const done = step > i + 1;
               const active = step === i + 1;
               return (
                 <div key={m.name} className={`ar-model-row${done ? " done" : active ? " active" : ""}`}>
                   <div className={`ar-model-dot${done ? " done" : active ? " active" : ""}`}>
-                    {done   && <IcoCheck size={12} />}
+                    {done && <IcoCheck size={12} />}
                     {active && <IcoSpinner />}
                     {!done && !active && <span className="ar-dot-inner" />}
                   </div>
@@ -424,11 +424,11 @@ function ScoreCard({ label, value, sub, color }: { label: string; value: number 
 function ModelColumn({ result }: { result: AuditReport["modelResults"][number] }) {
   const scoreColor =
     result.scoreOutOf100 >= 60 ? COLORS.green :
-    result.scoreOutOf100 >= 35 ? COLORS.amber : COLORS.red;
+      result.scoreOutOf100 >= 35 ? COLORS.amber : COLORS.red;
 
   const evidencePill =
-    result.evidenceQuality === "strong"   ? "ar-pill-found"    :
-    result.evidenceQuality === "moderate" ? "ar-pill-neutral"  : "ar-pill-missing";
+    result.evidenceQuality === "strong" ? "ar-pill-found" :
+      result.evidenceQuality === "moderate" ? "ar-pill-neutral" : "ar-pill-missing";
 
   return (
     <div className="ar-model-col">
@@ -507,7 +507,7 @@ function ModelColumn({ result }: { result: AuditReport["modelResults"][number] }
 // ── Results: CriteriaRow ──────────────────────────────────────────────────────
 function CriteriaRow({ item }: { item: AuditReport["coverage"][number] }) {
   const s = item.status.toLowerCase();
-  const color     = s === "strong" ? COLORS.green : s === "missing" ? COLORS.red : COLORS.amber;
+  const color = s === "strong" ? COLORS.green : s === "missing" ? COLORS.red : COLORS.amber;
   const pillClass = s === "strong" ? "ar-pill-found" : s === "missing" ? "ar-pill-missing" : "ar-pill-neutral";
   return (
     <div className="ar-criteria-row">
@@ -580,12 +580,12 @@ function ScreenResults({
   onExport: () => void;
   onRefresh: () => void;
 }) {
-  const overall    = report.scores.overall;
+  const overall = report.scores.overall;
   const scoreColor = overall >= 70 ? COLORS.green : overall >= 40 ? COLORS.amber : COLORS.red;
-  const today      = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const today = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
   const citedCount = report.modelResults.filter(r => r.brandMentioned).length;
-  const bestRank   = report.modelResults
+  const bestRank = report.modelResults
     .filter(r => r.brandMentioned && r.rankPosition != null)
     .reduce<number | null>((best, r) =>
       r.rankPosition == null ? best : best === null || r.rankPosition < best ? r.rankPosition : best,
@@ -593,9 +593,9 @@ function ScreenResults({
     );
 
   const cacheLabel =
-    report.cacheStatus === "hit"    ? "Cached result" :
-    report.cacheStatus === "miss"   ? "Fresh audit"   :
-    report.cacheStatus === "shared" ? "Shared report" : "Demo report";
+    report.cacheStatus === "hit" ? "Cached result" :
+      report.cacheStatus === "miss" ? "Fresh audit" :
+        report.cacheStatus === "shared" ? "Shared report" : "Demo report";
 
   return (
     <div className="ar-results">
@@ -633,10 +633,10 @@ function ScreenResults({
 
           <div className="ar-sidebar-stats">
             {[
-              { l: "Models cited in",   v: `${citedCount} / ${report.modelResults.length}` },
-              { l: "Best rank",         v: bestRank != null ? `#${bestRank}` : "Not ranked" },
+              { l: "Models cited in", v: `${citedCount} / ${report.modelResults.length}` },
+              { l: "Best rank", v: bestRank != null ? `#${bestRank}` : "Not ranked" },
               { l: "Competitors found", v: `${report.competitorInsights.length} brands` },
-              { l: "Status",            v: report.status },
+              { l: "Status", v: report.status },
             ].map(({ l, v }) => (
               <div key={l} className="ar-sidebar-stat-row">
                 <span className="ar-sidebar-stat-label">{l}</span>
@@ -803,13 +803,13 @@ function ScreenResults({
 
 // ── App Root ──────────────────────────────────────────────────────────────────
 function App() {
-  const [screen, setScreen]           = useState<"landing" | "loading" | "results">("landing");
-  const [report, setReport]           = useState<AuditReport>(sampleReport);
-  const [input, setInput]             = useState<AuditInput>(sampleInput);
-  const [identifier, setIdentifier]   = useState("");
-  const [error, setError]             = useState("");
+  const [screen, setScreen] = useState<"landing" | "loading" | "results">("landing");
+  const [report, setReport] = useState<AuditReport>(sampleReport);
+  const [input, setInput] = useState<AuditInput>(sampleInput);
+  const [identifier, setIdentifier] = useState("");
+  const [error, setError] = useState("");
   const [shareMessage, setShareMessage] = useState("");
-  const [refreshing, setRefreshing]   = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [recentSearches, setRecentSearches] = useState<RecentSearch[]>(() => loadRecentFromStorage());
 
   useEffect(() => {
@@ -835,7 +835,7 @@ function App() {
           localStorage.setItem("answerrank:recent", JSON.stringify(withTime));
         }
       })
-      .catch(() => {/* stay with localStorage */});
+      .catch(() => {/* stay with localStorage */ });
   }, []);
 
   async function handleSubmit(partial: Partial<AuditInput>) {
@@ -925,10 +925,10 @@ function loadRecentFromStorage(): RecentSearch[] {
 function relativeTime(ts: number): string {
   const diff = Date.now() - ts;
   const mins = Math.floor(diff / 60000);
-  if (mins < 1)  return "Just now";
+  if (mins < 1) return "Just now";
   if (mins < 60) return `${mins}m ago`;
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24)  return `${hrs}h ago`;
+  if (hrs < 24) return `${hrs}h ago`;
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
