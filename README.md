@@ -130,7 +130,7 @@ Optional model overrides:
 
 ```txt
 OPENAI_MODEL=gpt-4o-mini
-GEMINI_MODEL=gemini-1.5-flash
+GEMINI_MODEL=gemini-2.5-flash
 GROQ_MODEL=llama-3.1-8b-instant
 ```
 
@@ -150,7 +150,7 @@ Supabase
   - enables short share links like /?reportId=<uuid>
 
 Gemini
-  - primary low-cost model, default gemini-1.5-flash
+  - primary low-cost model, default gemini-2.5-flash
 
 Groq
   - secondary low-cost Llama model, default llama-3.1-8b-instant

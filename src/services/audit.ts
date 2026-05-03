@@ -99,6 +99,7 @@ async function runBackendAudit(input: AuditInput): Promise<AuditReport | null> {
         ...data.report,
         saved: Boolean(data.saved),
         cached: Boolean(data.cached),
+        storageError: data.storageError,
         cacheStatus: data.cached ? "hit" : "miss",
         cacheAgeMinutes: data.cacheAgeMinutes,
         cacheWindowHours: data.cacheWindowHours,
@@ -313,30 +314,52 @@ rawAnswer string.
 }
 
 function normalizeModelResult(model: string, query: string, content: string): ModelResult {
-  let parsed: Partial<ModelResult> = {};
+  let parsed: Record<string, unknown> = {};
   try {
     parsed = JSON.parse(content);
   } catch {
     parsed = { rawAnswer: content, summary: content.slice(0, 180) };
   }
 
-  const strength = parsed.recommendationStrength;
-  const allowed = ["strong", "positive", "neutral", "weak", "negative"];
+  const allowedStrength = ["strong", "positive", "neutral", "weak", "negative"];
+  const allowedEvidence = ["strong", "moderate", "weak", "none"];
+  const allowedContext  = ["top3", "mentioned", "not_mentioned"];
+
+  const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
   return {
     model,
     query,
     brandMentioned: Boolean(parsed.brandMentioned),
     rankPosition: typeof parsed.rankPosition === "number" ? parsed.rankPosition : null,
-    recommendationStrength: allowed.includes(String(strength))
-      ? (strength as ModelResult["recommendationStrength"])
+    rankContext: allowedContext.includes(String(parsed.rankContext))
+      ? (parsed.rankContext as ModelResult["rankContext"])
+      : "not_mentioned",
+    recommendationStrength: allowedStrength.includes(String(parsed.recommendationStrength))
+      ? (parsed.recommendationStrength as ModelResult["recommendationStrength"])
       : "neutral",
-    mentionedCompetitors: safeArray(parsed.mentionedCompetitors),
-    buyerCriteria: safeArray(parsed.buyerCriteria),
-    missingSignals: safeArray(parsed.missingSignals),
-    reasonsForLoss: safeArray(parsed.reasonsForLoss),
-    summary: parsed.summary || "Model returned a visibility assessment.",
-    rawAnswer: parsed.rawAnswer || content,
+    scoreOutOf100: typeof parsed.scoreOutOf100 === "number"
+      ? clamp(Math.round(parsed.scoreOutOf100), 0, 100) : 0,
+    evidenceQuality: allowedEvidence.includes(String(parsed.evidenceQuality))
+      ? (parsed.evidenceQuality as ModelResult["evidenceQuality"])
+      : "weak",
+    confidence: typeof parsed.confidence === "number" ? clamp(parsed.confidence, 0, 1) : 0.5,
+    relevanceScore: typeof parsed.relevanceScore === "number"
+      ? clamp(Math.round(parsed.relevanceScore), 0, 100) : 0,
+    visibilityScore: typeof parsed.visibilityScore === "number"
+      ? clamp(Math.round(parsed.visibilityScore), 0, 100) : 0,
+    evidenceScore: typeof parsed.evidenceScore === "number"
+      ? clamp(Math.round(parsed.evidenceScore), 0, 100) : 0,
+    competitivenessScore: typeof parsed.competitivenessScore === "number"
+      ? clamp(Math.round(parsed.competitivenessScore), 0, 100) : 0,
+    queryIntent: String(parsed.queryIntent || "best"),
+    topRecommendations: safeArray(parsed.topRecommendations as unknown[]).slice(0, 5),
+    mentionedCompetitors: safeArray(parsed.mentionedCompetitors as unknown[]),
+    buyerCriteria: safeArray(parsed.buyerCriteria as unknown[]),
+    missingSignals: safeArray(parsed.missingSignals as unknown[]),
+    reasonsForLoss: safeArray(parsed.reasonsForLoss as unknown[]),
+    summary: typeof parsed.summary === "string" ? parsed.summary : "Model returned a visibility assessment.",
+    rawAnswer: typeof parsed.rawAnswer === "string" ? parsed.rawAnswer : content,
   };
 }
 
@@ -353,7 +376,17 @@ function fallbackModelResults(product: ProductContext, query: string): ModelResu
       query,
       brandMentioned: mentioned,
       rankPosition: mentioned ? 3 : null,
+      rankContext: mentioned ? "mentioned" : "not_mentioned",
       recommendationStrength: mentioned ? "positive" : "weak",
+      scoreOutOf100: mentioned ? 42 : 18,
+      evidenceQuality: hasTesting ? "moderate" : "weak",
+      confidence: 0.6,
+      relevanceScore: 50,
+      visibilityScore: mentioned ? 20 : 0,
+      evidenceScore: hasTesting ? 40 : 15,
+      competitivenessScore: 25,
+      queryIntent: "best",
+      topRecommendations: inferFallbackCompetitors(product.category),
       mentionedCompetitors: inferFallbackCompetitors(product.category),
       buyerCriteria: [
         "third-party testing",
@@ -363,9 +396,9 @@ function fallbackModelResults(product: ProductContext, query: string): ModelResu
         "review credibility",
       ],
       missingSignals: [
-        !hasTesting ? "third-party testing" : "",
-        !hasSafety ? "safety guidance" : "",
-        !hasReviews ? "review credibility" : "",
+        !hasTesting ? "No third-party testing certification found in listing" : "",
+        !hasSafety ? "No safety or consultation guidance for risk-aware shoppers" : "",
+        !hasReviews ? "No review-backed claims or customer outcome language" : "",
       ].filter(Boolean),
       reasonsForLoss: mentioned ? [] : ["The listing does not provide enough proof for risk-aware AI recommendations."],
       summary: mentioned

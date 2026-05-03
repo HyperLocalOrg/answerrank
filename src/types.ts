@@ -26,7 +26,17 @@ export type ModelResult = {
   query: string;
   brandMentioned: boolean;
   rankPosition: number | null;
+  rankContext: "top3" | "mentioned" | "not_mentioned";
   recommendationStrength: "strong" | "positive" | "neutral" | "weak" | "negative";
+  scoreOutOf100: number;
+  evidenceQuality: "strong" | "moderate" | "weak" | "none";
+  confidence: number;
+  relevanceScore: number;
+  visibilityScore: number;
+  evidenceScore: number;
+  competitivenessScore: number;
+  queryIntent: string;
+  topRecommendations: string[];
   mentionedCompetitors: string[];
   buyerCriteria: string[];
   missingSignals: string[];
@@ -65,6 +75,7 @@ export type AuditReport = {
   id: string;
   saved?: boolean;
   cached?: boolean;
+  storageError?: string;
   cacheStatus?: "hit" | "miss" | "demo" | "shared";
   cacheAgeMinutes?: number;
   cacheWindowHours?: number;

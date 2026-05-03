@@ -31,6 +31,53 @@ const TRUST_SIGNAL_FIXES = {
   "safety warnings": "Add responsible safety and compatibility guidance.",
 };
 
+const MODEL_PERSONAS = {
+  gemini: `You are Gemini, an AI shopping assistant with access to Google Shopping signals. You surface popular, highly-reviewed, and trending products. You weight search popularity, review volume, and cross-platform presence heavily in your recommendations.`,
+  llama: `You are a no-nonsense AI shopping assistant. You give straightforward, practical recommendations based on specs, value for money, and verified user reviews. You are skeptical of vague marketing claims and only recommend products with concrete, verifiable proof points.`,
+};
+
+const EXAMPLE_OUTPUT = `
+## FORMAT REFERENCE (structure + tone only — do not copy scores or competitors)
+
+Shopper query: "best magnesium supplement for sleep"
+Audited product: "GenericMag 500mg Tablets"
+
+{
+  "brandMentioned": false,
+  "rankPosition": null,
+  "rankContext": "not_mentioned",
+  "recommendationStrength": "weak",
+  "scoreOutOf100": 28,
+  "evidenceQuality": "weak",
+  "confidence": 0.85,
+  "mentionedCompetitors": [
+    "Natural Vitality Calm",
+    "MagTech by Natural Stacks",
+    "Doctor's Best High Absorption Magnesium"
+  ],
+  "buyerCriteria": [
+    "magnesium form (glycinate or threonate for sleep)",
+    "third-party tested",
+    "no artificial fillers or sweeteners",
+    "customer reviews specifically mentioning sleep improvement",
+    "bioavailability evidence"
+  ],
+  "missingSignals": [
+    "magnesium form not specified — oxide vs glycinate is the #1 purchase filter",
+    "no third-party testing certification mentioned",
+    "no sleep-specific clinical claim or study cited",
+    "no customer testimonials referencing sleep outcomes"
+  ],
+  "reasonsForLoss": [
+    "Natural Vitality Calm specifies glycinate form — the form shoppers filter by for sleep",
+    "Doctor's Best is third-party tested — a trust signal GenericMag lacks",
+    "MagTech has nootropic sleep angle with published research"
+  ],
+  "summary": "Invisible in this query — missing the form specification, sleep-specific proof, and trust signals that all top competitors lead with.",
+  "rawAnswer": "For sleep, the magnesium form matters most — glycinate and threonate are far better absorbed and cross the blood-brain barrier more effectively than oxide. My top picks: Natural Vitality Calm (glycinate, 10,000+ reviews citing sleep improvement), Doctor's Best High Absorption (glycinate, third-party tested, clean label), and MagTech by Natural Stacks (threonate, nootropic-grade, research-backed). GenericMag 500mg doesn't make the cut — it doesn't specify the magnesium form, lacks sleep-specific claims, and has no certification or customer proof that sleep shoppers rely on."
+}
+`.trim();
+
 const CACHE_WINDOW_HOURS = 12;
 const CACHE_WINDOW_MS = CACHE_WINDOW_HOURS * 60 * 60 * 1000;
 
@@ -57,14 +104,15 @@ export default async function handler(req, res) {
     }
 
     const report = await createReport(input || {});
-    const saved = await saveReport(report, cacheKey);
+    const saveResult = await saveReport(report, cacheKey);
     return res.status(200).json({
       report,
-      saved: Boolean(saved),
+      saved: saveResult.ok,
+      storageError: saveResult.error,
       cached: false,
       cacheWindowHours: CACHE_WINDOW_HOURS,
       reportId: report.id,
-      sharePath: saved ? `/?reportId=${report.id}` : null,
+      sharePath: saveResult.ok ? `/?reportId=${report.id}` : null,
     });
   } catch (error) {
     console.error(error);
@@ -104,6 +152,8 @@ async function createReport(input) {
 
 async function scrapeProduct(input) {
   let scrapedText = "";
+  let scrapedTitle = "";
+  let scrapedDescription = "";
 
   if (process.env.FIRECRAWL_API_KEY && input.productUrl) {
     try {
@@ -122,20 +172,24 @@ async function scrapeProduct(input) {
       });
       if (response.ok) {
         const data = await response.json();
-        scrapedText = data?.data?.markdown || data?.markdown || "";
+        const payload = data?.data || data;
+        scrapedText = payload?.markdown || "";
+        scrapedTitle = payload?.metadata?.title || payload?.metadata?.ogTitle || "";
+        scrapedDescription = payload?.metadata?.description || payload?.metadata?.ogDescription || "";
       }
     } catch {
       scrapedText = "";
     }
   }
 
-  const combinedCopy = [input.productCopy, scrapedText].filter(Boolean).join("\n\n").trim();
+  const cleanedText = cleanScrapedText(scrapedText);
+  const combinedCopy = [input.productCopy, scrapedTitle, scrapedDescription, cleanedText].filter(Boolean).join("\n\n").trim();
   const sentences = combinedCopy
     .split(/\n|\. /)
     .map((line) => line.trim().replace(/\.$/, ""))
     .filter(Boolean);
 
-  const inferredProduct = inferProductName(input, sentences);
+  const inferredProduct = inferProductName(input, sentences, scrapedTitle);
   const inferredBrand = inferBrandName(input, inferredProduct);
 
   return {
@@ -150,8 +204,23 @@ async function scrapeProduct(input) {
   };
 }
 
-function inferProductName(input, sentences) {
+function cleanScrapedText(text) {
+  return String(text || "")
+    .replace(/\[!\[[^\]]*]\([^)]+\)]\([^)]+\)/g, " ")
+    .replace(/!\[[^\]]*]\([^)]+\)/g, " ")
+    .replace(/\[[^\]]*]\((javascript:void\(0\)|#|mailto:[^)]+)\)/g, " ")
+    .replace(/https?:\/\/\S+/g, " ")
+    .replace(/\b(add to cart|buy now|sponsored|advertisement|share|sign in|returns?|customer service)\b/gi, " ")
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 20 && line.length < 500)
+    .slice(0, 45)
+    .join("\n");
+}
+
+function inferProductName(input, sentences, scrapedTitle = "") {
   if (input.productName) return String(input.productName).trim();
+  if (scrapedTitle) return cleanTitle(scrapedTitle);
   if (sentences[0]) return sentences[0].slice(0, 140);
   try {
     if (!input.productUrl) return "Audited product";
@@ -165,6 +234,14 @@ function inferProductName(input, sentences) {
     return "Audited product";
   }
   return "Audited product";
+}
+
+function cleanTitle(title) {
+  return String(title)
+    .replace(/\s*[-|:]\s*(Amazon\.com|Amazon|Shopify|Walmart|Flipkart).*$/i, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 140);
 }
 
 function inferBrandName(input, productName) {
@@ -236,7 +313,7 @@ async function queryOpenAI(product, query, input) {
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: "Return strict JSON only. You are an ecommerce AI visibility analyst." },
-        { role: "user", content: modelPrompt(product, query, input) },
+        { role: "user", content: modelPrompt(product, query, "gemini") },
       ],
       temperature: 0.2,
     }),
@@ -247,20 +324,25 @@ async function queryOpenAI(product, query, input) {
 }
 
 async function queryGemini(product, query, input) {
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${process.env.GEMINI_MODEL || "gemini-1.5-flash"}:generateContent?key=${process.env.GEMINI_API_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: `${modelPrompt(product, query, input)}\nReturn only valid JSON.` }] }],
-        generationConfig: { temperature: 0.2, responseMimeType: "application/json" },
-      }),
+  const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.GEMINI_API_KEY}`,
     },
-  );
+    body: JSON.stringify({
+      model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: "Return strict JSON only. You are an ecommerce AI visibility analyst." },
+        { role: "user", content: modelPrompt(product, query, "gemini") },
+      ],
+      temperature: 0.2,
+    }),
+  });
   if (!response.ok) throw new Error(`Gemini request failed: ${response.status}`);
   const data = await response.json();
-  return normalizeModelResult("Gemini", query, data?.candidates?.[0]?.content?.parts?.[0]?.text || "{}");
+  return normalizeModelResult("Gemini", query, data?.choices?.[0]?.message?.content || "{}");
 }
 
 async function queryGroq(product, query, input) {
@@ -275,7 +357,7 @@ async function queryGroq(product, query, input) {
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: "Return strict JSON only. You are an ecommerce AI visibility analyst." },
-        { role: "user", content: modelPrompt(product, query, input) },
+        { role: "user", content: modelPrompt(product, query, "llama") },
       ],
       temperature: 0.2,
     }),
@@ -285,29 +367,164 @@ async function queryGroq(product, query, input) {
   return normalizeModelResult("Groq Llama", query, data?.choices?.[0]?.message?.content || "{}");
 }
 
-function modelPrompt(product, query, input) {
+/**
+ * @param {Object} product
+ * @param {string} product.brandName
+ * @param {string} product.productName
+ * @param {string} product.category
+ * @param {string} product.description
+ * @param {string} query
+ * @param {"gemini"|"llama"} modelName
+ * @returns {string}
+ */
+export function modelPrompt(product, query, modelName = "gemini") {
+  const persona = MODEL_PERSONAS[modelName] ?? MODEL_PERSONAS.gemini;
+  const truncatedDescription = product.description.slice(0, 2000);
+
   return `
-Analyze whether an AI shopping assistant would recommend the audited product.
+${persona}
 
-Buyer query: ${query}
-Audited brand: ${product.brandName}
-Audited product: ${product.productName}
+A shopper asked: "${query}"
+
+Your task has two steps. Only the final JSON is output — Step 1 is internal reasoning only.
+
+---
+
+STEP 1 — INTERNAL ONLY (do not output this):
+Generate a realistic TOP 5 recommendation list for this shopper query.
+- Use real products you know from training data
+- Rank strictly by shopper value: relevance, evidence, trust signals, reviews
+- This list is your ground truth for all fields below
+
+STEP 2 — AUDIT:
+Evaluate the audited product against your Step 1 list and fill the JSON below.
+
+---
+
+AUDITED PRODUCT:
+Brand: ${product.brandName}
+Product: ${product.productName}
 Category: ${product.category}
-Product context:
-${product.description.slice(0, 7000)}
-Competitors:
-Infer likely competitors from the buyer query, category, and your shopping knowledge. Do not require user-provided competitors.
 
-Return JSON with:
-brandMentioned boolean,
-rankPosition number or null,
-recommendationStrength one of strong, positive, neutral, weak, negative,
-mentionedCompetitors string[],
-buyerCriteria string[],
-missingSignals string[],
-reasonsForLoss string[],
-summary string,
-rawAnswer string.
+PRODUCT CONTEXT (sole source of truth — do not invent specs or claims):
+${truncatedDescription}
+
+---
+
+${EXAMPLE_OUTPUT}
+
+---
+
+FIELD RULES (follow exactly):
+
+brandMentioned:
+  true ONLY if the product appears in your Step 1 top 5
+
+rankPosition:
+  Integer 1–5 matching Step 1 position, or null if not in list
+
+rankContext:
+  "top3"         → rankPosition 1, 2, or 3
+  "mentioned"    → rankPosition 4 or 5
+  "not_mentioned"→ not in top 5
+
+topRecommendations:
+  Array of exactly 5 product names (brand + product) from your Step 1 internal list.
+  Format: ["Product A", "Product B", ...]
+
+relevanceScore:
+  0–100 – how well the audited product matches the shopper's query intent and specific needs.
+  Separate from evidence – a product can be relevant but lack proof.
+
+visibilityScore, evidenceScore, competitivenessScore:
+  Each 0–100, corresponding to the 40/30/30 weights.
+  They should average (weighted) to scoreOutOf100.
+
+queryIntent:
+  One of: "best", "compare", "review", "how_to", "other".
+  Infer from the query phrasing.
+
+recommendationStrength:
+  "strong"   → rank 1–2 with clear category advantage
+  "positive" → rank 3
+  "neutral"  → rank 4–5
+  "weak"     → outside top 5 but has some relevance
+  "negative" → outside top 5 and product context contradicts shopper needs
+
+scoreOutOf100:
+  Weighted score — be realistic and strict:
+    visibility     40pts → 40 if rank 1–2, 30 if rank 3, 20 if rank 4–5, 0 if not mentioned
+    evidenceQuality 30pts → 30=strong, 20=moderate, 10=weak, 0=none
+    competitiveness 30pts → how well it beats real competitors on shopper criteria
+  Realistic ranges: not_mentioned=10–40, mentioned=35–60, top3=55–85, rank1=75–90
+
+evidenceQuality:
+  "strong"   → verified specs, certifications, clinical claims, or substantial reviews in context
+  "moderate" → some supporting info but gaps exist
+  "weak"     → vague, generic, or mostly marketing language
+  "none"     → no meaningful evidence in product context
+
+confidence:
+  0.0–1.0 — your certainty in this ranking
+  High (0.8–1.0) → category is clear, product context is sufficient, competitors are well-known
+  Medium (0.5–0.79) → query is ambiguous or product context is thin
+  Low (0.0–0.49) → insufficient product context to rank reliably
+
+mentionedCompetitors:
+  MUST be the other products from your Step 1 top 5 list
+  3–5 real brand/product names, not generic categories
+
+buyerCriteria:
+  5–8 specific decision factors this shopper actually uses
+  Use shopper language: "dissolves easily" not "high solubility"
+  Must be specific to this query, not generic product features
+
+missingSignals:
+  Concrete missing proof points from product context
+  Bad: "lacks reviews" — Good: "no customer testimonials mentioning X outcome"
+  Bad: "no certifications" — Good: "no NSF or USP certification mentioned despite being a supplement"
+
+reasonsForLoss:
+  Direct comparison vs named competitors from your top 5
+  If rankPosition is 1, return []
+  Must name the competitor and the specific advantage they have
+
+rawAnswer:
+  120–180 words
+  Written as if you are genuinely answering the shopper — your natural assistant voice
+  Must name real competitor products from your top 5
+  No disclaimers, no "I recommend consulting", no fluff
+
+summary:
+  Exactly one sentence
+  Sharp, honest diagnosis of why this product ranks or doesn't
+  No sugarcoating
+
+---
+
+Return ONLY valid JSON. No markdown. No backticks. No explanation before or after.
+
+{
+  "brandMentioned": boolean,
+  "rankPosition": number | null,
+  "rankContext": "top3" | "mentioned" | "not_mentioned",
+  "recommendationStrength": "strong" | "positive" | "neutral" | "weak" | "negative",
+  "scoreOutOf100": number,
+  "evidenceQuality": "strong" | "moderate" | "weak" | "none",
+  "confidence": number,
+  "mentionedCompetitors": string[],
+  "buyerCriteria": string[],
+  "missingSignals": string[],
+  "reasonsForLoss": string[],
+  "summary": string,
+  "rawAnswer": string,
+  "topRecommendations": string[],
+  "relevanceScore": number,
+  "visibilityScore": number,
+  "evidenceScore": number,
+  "competitivenessScore": number,
+  "queryIntent": string
+}
 `.trim();
 }
 
@@ -318,21 +535,33 @@ function normalizeModelResult(model, query, content) {
   } catch {
     parsed = { rawAnswer: content, summary: content.slice(0, 180) };
   }
-  const allowed = ["strong", "positive", "neutral", "weak", "negative"];
+  const allowedStrength = ["strong", "positive", "neutral", "weak", "negative"];
+  const allowedEvidence = ["strong", "moderate", "weak", "none"];
+  const allowedContext  = ["top3", "mentioned", "not_mentioned"];
   return {
     model,
     query,
     brandMentioned: Boolean(parsed.brandMentioned),
     rankPosition: typeof parsed.rankPosition === "number" ? parsed.rankPosition : null,
-    recommendationStrength: allowed.includes(String(parsed.recommendationStrength))
+    rankContext: allowedContext.includes(String(parsed.rankContext)) ? parsed.rankContext : "not_mentioned",
+    recommendationStrength: allowedStrength.includes(String(parsed.recommendationStrength))
       ? parsed.recommendationStrength
       : "neutral",
-    mentionedCompetitors: safeArray(parsed.mentionedCompetitors),
-    buyerCriteria: safeArray(parsed.buyerCriteria),
-    missingSignals: safeArray(parsed.missingSignals),
-    reasonsForLoss: safeArray(parsed.reasonsForLoss),
-    summary: parsed.summary || "Model returned a visibility assessment.",
-    rawAnswer: parsed.rawAnswer || content,
+    scoreOutOf100:         typeof parsed.scoreOutOf100 === "number"          ? clamp(Math.round(parsed.scoreOutOf100), 0, 100) : 0,
+    evidenceQuality:       allowedEvidence.includes(String(parsed.evidenceQuality)) ? parsed.evidenceQuality : "weak",
+    confidence:            typeof parsed.confidence === "number"              ? clamp(parsed.confidence, 0, 1)   : 0.5,
+    relevanceScore:        typeof parsed.relevanceScore === "number"          ? clamp(Math.round(parsed.relevanceScore), 0, 100) : 0,
+    visibilityScore:       typeof parsed.visibilityScore === "number"         ? clamp(Math.round(parsed.visibilityScore), 0, 100) : 0,
+    evidenceScore:         typeof parsed.evidenceScore === "number"           ? clamp(Math.round(parsed.evidenceScore), 0, 100) : 0,
+    competitivenessScore:  typeof parsed.competitivenessScore === "number"    ? clamp(Math.round(parsed.competitivenessScore), 0, 100) : 0,
+    queryIntent:           String(parsed.queryIntent || "best"),
+    topRecommendations:    safeArray(parsed.topRecommendations).slice(0, 5),
+    mentionedCompetitors:  safeArray(parsed.mentionedCompetitors),
+    buyerCriteria:         safeArray(parsed.buyerCriteria),
+    missingSignals:        safeArray(parsed.missingSignals),
+    reasonsForLoss:        safeArray(parsed.reasonsForLoss),
+    summary:               parsed.summary || "Model returned a visibility assessment.",
+    rawAnswer:             parsed.rawAnswer || content,
   };
 }
 
@@ -450,11 +679,11 @@ function calculateAeoScore(product, results, coverage) {
   const contentReadiness = contentReadinessScore(product);
   const overall = Math.round(
     mentionVisibility * 0.25 +
-      rankingPosition * 0.2 +
-      trustSignalCoverage * 0.2 +
-      competitiveDifferentiation * 0.15 +
-      sentiment * 0.1 +
-      contentReadiness * 0.1,
+    rankingPosition * 0.2 +
+    trustSignalCoverage * 0.2 +
+    competitiveDifferentiation * 0.15 +
+    sentiment * 0.1 +
+    contentReadiness * 0.1,
   );
 
   return {
@@ -556,7 +785,9 @@ function makeExecutiveSummary(product, scores, results) {
 }
 
 async function saveReport(report, cacheKey) {
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return false;
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return { ok: false, error: "Supabase env vars missing" };
+  }
 
   const response = await fetch(`${process.env.SUPABASE_URL}/rest/v1/reports`, {
     method: "POST",
@@ -576,7 +807,13 @@ async function saveReport(report, cacheKey) {
     }),
   });
 
-  return response.ok;
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "");
+    console.error("Supabase save failed", response.status, errorText);
+    return { ok: false, error: `Supabase save failed: ${response.status}` };
+  }
+
+  return { ok: true };
 }
 
 async function getCachedReport(cacheKey) {

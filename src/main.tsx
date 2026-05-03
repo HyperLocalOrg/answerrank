@@ -5,7 +5,7 @@ import { runAudit } from "./services/audit";
 import type { AuditInput, AuditReport, ScoreBreakdown } from "./types";
 import {
   copyShareLink,
-  downloadReportJson,
+  downloadReportPdf,
   loadSavedReport,
   readReportFromHash,
   readReportIdFromUrl,
@@ -22,10 +22,38 @@ const SCORE_LABELS: { key: keyof ScoreBreakdown; label: string }[] = [
   { key: "contentReadiness",           label: "Content Readiness"        },
 ];
 
-const RECENT = [
-  { product: "Magnesium Breakthrough", url: "amazon.com/biooptimizers-magnesium", time: "2h ago" },
-  { product: "Sleep Formula Pro",      url: "sleepformula.com/pro-blend",         time: "5h ago" },
-  { product: "Omega 3 Elite",          url: "amazon.com/omega3-elite",            time: "1d ago" },
+type RecentSearch = {
+  product: string;
+  url?: string;
+  brandName?: string;
+  productName?: string;
+  query: string;
+  time: string;
+  createdAt: number;
+};
+
+const DEFAULT_RECENT: RecentSearch[] = [
+  {
+    product: "Magnesium Breakthrough",
+    url: "amazon.com/biooptimizers-magnesium",
+    query: "best magnesium for sleep and anxiety",
+    time: "Example",
+    createdAt: 0,
+  },
+  {
+    product: "Sleep Formula Pro",
+    url: "sleepformula.com/pro-blend",
+    query: "best natural sleep supplement",
+    time: "Example",
+    createdAt: 0,
+  },
+  {
+    product: "Omega 3 Elite",
+    url: "amazon.com/omega3-elite",
+    query: "best omega 3 supplement for heart health",
+    time: "Example",
+    createdAt: 0,
+  },
 ];
 
 const COLORS = { blue: "#2563EB", green: "#059669", red: "#DC2626", amber: "#D97706" };
@@ -128,9 +156,11 @@ function Nav({
 function ScreenLanding({
   onSubmit,
   error,
+  recentSearches,
 }: {
   onSubmit: (partial: Partial<AuditInput>) => void;
   error: string;
+  recentSearches: RecentSearch[];
 }) {
   const [hasUrl, setHasUrl] = useState(true);
   const [url, setUrl] = useState("");
@@ -156,9 +186,16 @@ function ScreenLanding({
     });
   }
 
-  function handleRecent(r: typeof RECENT[number]) {
-    setHasUrl(true);
-    setUrl(r.url);
+  function handleRecent(r: RecentSearch) {
+    setQuery(r.query);
+    if (r.url) {
+      setHasUrl(true);
+      setUrl(r.url);
+    } else {
+      setHasUrl(false);
+      setBrand(r.brandName || "");
+      setProduct(r.productName || r.product);
+    }
   }
 
   return (
@@ -279,11 +316,11 @@ function ScreenLanding({
         <div>
           <span className="ar-section-label">Recent Searches</span>
           <div className="ar-recent-list">
-            {RECENT.map((r, i) => (
+            {recentSearches.map((r, i) => (
               <div key={i} className="ar-recent-item" onClick={() => handleRecent(r)}>
                 <div className="ar-recent-info">
                   <p className="ar-recent-product">{r.product}</p>
-                  <p className="ar-recent-url">{r.url}</p>
+                  <p className="ar-recent-url">{r.url || `${r.brandName || ""} ${r.productName || ""}`.trim()}</p>
                 </div>
                 <span className="ar-recent-time"><IcoClock />{r.time}</span>
               </div>
@@ -293,7 +330,7 @@ function ScreenLanding({
 
         {/* Footer stats */}
         <div className="ar-footer-stats">
-          {[["3", "AI Models"], ["~10s", "Response time"], ["7 days", "Results cached"]].map(([n, l]) => (
+          {[["3", "AI Models"], ["~10s", "Response time"], ["12h", "Results cached"]].map(([n, l]) => (
             <div key={l} className="ar-footer-stat">
               <div className="ar-footer-stat-num">{n}</div>
               <div className="ar-footer-stat-label">{l}</div>
@@ -365,7 +402,7 @@ function ScreenLoading({ identifier }: { identifier: string }) {
               );
             })}
           </div>
-          <p className="ar-loading-note">This takes ~10 seconds · Cached 7 days</p>
+          <p className="ar-loading-note">This takes ~10 seconds · Cached 12 hours</p>
         </div>
       </div>
     </div>
@@ -385,8 +422,17 @@ function ScoreCard({ label, value, sub, color }: { label: string; value: number 
 
 // ── Results: ModelColumn ──────────────────────────────────────────────────────
 function ModelColumn({ result }: { result: AuditReport["modelResults"][number] }) {
+  const scoreColor =
+    result.scoreOutOf100 >= 60 ? COLORS.green :
+    result.scoreOutOf100 >= 35 ? COLORS.amber : COLORS.red;
+
+  const evidencePill =
+    result.evidenceQuality === "strong"   ? "ar-pill-found"    :
+    result.evidenceQuality === "moderate" ? "ar-pill-neutral"  : "ar-pill-missing";
+
   return (
     <div className="ar-model-col">
+      {/* Header */}
       <div className={`ar-model-col-head${result.brandMentioned ? " found" : " missing"}`}>
         <div className="ar-model-col-title-row">
           <p className="ar-model-col-name">{result.model}</p>
@@ -395,22 +441,63 @@ function ModelColumn({ result }: { result: AuditReport["modelResults"][number] }
             {result.brandMentioned ? `Rank #${result.rankPosition ?? "–"}` : "NOT MENTIONED"}
           </span>
         </div>
-        <p className="ar-model-col-sublabel">{result.recommendationStrength}</p>
+        {/* Score + meta row */}
+        <div className="ar-model-col-meta">
+          <span className="ar-model-col-score" style={{ color: scoreColor }}>{result.scoreOutOf100}</span>
+          <span className={`ar-tag ${evidencePill}`}>{result.evidenceQuality}</span>
+          <span className="ar-model-col-conf">
+            {Math.round(result.confidence * 100)}% confidence
+          </span>
+        </div>
       </div>
+
+      {/* Body */}
       <div className="ar-model-col-body">
-        <span className="ar-model-col-section-label">Excerpt</span>
+        <span className="ar-model-col-section-label">AI answer</span>
         <p className="ar-model-col-excerpt">
-          "{result.summary.length > 140 ? result.summary.slice(0, 140) + "…" : result.summary}"
+          "{result.summary.length > 160 ? result.summary.slice(0, 160) + "…" : result.summary}"
         </p>
+
+        {result.topRecommendations.length > 0 && (
+          <div className="ar-model-col-block">
+            <span className="ar-model-col-section-label">Top 5 recommendations</span>
+            <ol className="ar-top-recs">
+              {result.topRecommendations.map((rec, i) => (
+                <li key={i} className={rec.toLowerCase().includes(result.model.toLowerCase()) ? "ar-top-rec-ours" : ""}>
+                  {rec}
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
+
+        {result.missingSignals.length > 0 && (
+          <div className="ar-model-col-block">
+            <span className="ar-model-col-section-label">Missing signals</span>
+            <ul className="ar-signal-list ar-signal-missing">
+              {result.missingSignals.slice(0, 3).map((s, i) => <li key={i}>{s}</li>)}
+            </ul>
+          </div>
+        )}
+
+        {result.reasonsForLoss.length > 0 && (
+          <div className="ar-model-col-block">
+            <span className="ar-model-col-section-label">Why competitors win</span>
+            <ul className="ar-signal-list ar-signal-loss">
+              {result.reasonsForLoss.slice(0, 3).map((s, i) => <li key={i}>{s}</li>)}
+            </ul>
+          </div>
+        )}
+
         {result.mentionedCompetitors.length > 0 && (
-          <>
-            <span className="ar-model-col-section-label" style={{ marginTop: 10 }}>Cited Instead</span>
+          <div className="ar-model-col-block">
+            <span className="ar-model-col-section-label">Cited instead</span>
             <div className="ar-competitor-chips">
               {result.mentionedCompetitors.slice(0, 4).map(c => (
                 <span key={c} className="ar-chip-red">{c}</span>
               ))}
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>
@@ -561,6 +648,7 @@ function ScreenResults({
           <div className="ar-cache-badge">
             <p className="ar-cache-badge-title"><IcoZap />{cacheLabel}</p>
             <p className="ar-cache-badge-sub">Generated {today}</p>
+            {report.storageError && <p className="ar-cache-badge-sub">Storage: {report.storageError}</p>}
           </div>
 
           <button
@@ -722,6 +810,7 @@ function App() {
   const [error, setError]             = useState("");
   const [shareMessage, setShareMessage] = useState("");
   const [refreshing, setRefreshing]   = useState(false);
+  const [recentSearches, setRecentSearches] = useState<RecentSearch[]>(() => loadRecentFromStorage());
 
   useEffect(() => {
     const reportId = readReportIdFromUrl();
@@ -733,6 +822,20 @@ function App() {
     }
     const shared = readReportFromHash();
     if (shared) { setReport(shared); setScreen("results"); }
+  }, []);
+
+  // Load recent searches from DB; fall back to localStorage silently
+  useEffect(() => {
+    fetch("/api/recent")
+      .then(r => r.json())
+      .then((data: { recent?: Omit<RecentSearch, "time">[] }) => {
+        if (data.recent?.length) {
+          const withTime = data.recent.map(r => ({ ...r, time: relativeTime(r.createdAt) }));
+          setRecentSearches(withTime);
+          localStorage.setItem("answerrank:recent", JSON.stringify(withTime));
+        }
+      })
+      .catch(() => {/* stay with localStorage */});
   }, []);
 
   async function handleSubmit(partial: Partial<AuditInput>) {
@@ -752,6 +855,7 @@ function App() {
       const result = await runAudit(nextInput);
       await minWait;
       setReport(result);
+      rememberSearch(nextInput, result, setRecentSearches);
       setScreen("results");
     } catch (err) {
       await minWait;
@@ -786,7 +890,7 @@ function App() {
   return (
     <>
       {screen === "landing" && (
-        <ScreenLanding onSubmit={handleSubmit} error={error} />
+        <ScreenLanding onSubmit={handleSubmit} error={error} recentSearches={recentSearches} />
       )}
       {screen === "loading" && (
         <ScreenLoading identifier={identifier} />
@@ -799,12 +903,64 @@ function App() {
           shareMessage={shareMessage}
           onNewReport={() => setScreen("landing")}
           onShare={handleShare}
-          onExport={() => downloadReportJson(report)}
+          onExport={() => downloadReportPdf(report)}
           onRefresh={handleRefresh}
         />
       )}
     </>
   );
+}
+
+function loadRecentFromStorage(): RecentSearch[] {
+  try {
+    const stored = localStorage.getItem("answerrank:recent");
+    if (!stored) return DEFAULT_RECENT;
+    const parsed = JSON.parse(stored) as RecentSearch[];
+    return parsed.length ? parsed : DEFAULT_RECENT;
+  } catch {
+    return DEFAULT_RECENT;
+  }
+}
+
+function relativeTime(ts: number): string {
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1)  return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24)  return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+function rememberSearch(
+  input: AuditInput,
+  report: AuditReport,
+  setRecentSearches: React.Dispatch<React.SetStateAction<RecentSearch[]>>,
+) {
+  const item: RecentSearch = {
+    product: report.product.productName,
+    url: input.productUrl || undefined,
+    brandName: input.brandName || report.product.brandName,
+    productName: input.productName || report.product.productName,
+    query: input.targetQuery,
+    time: relativeTime(Date.now()),
+    createdAt: Date.now(),
+  };
+
+  setRecentSearches((current) => {
+    const deduped = current.filter((existing) => {
+      const sameUrl = item.url && existing.url === item.url;
+      const sameManual =
+        !item.url &&
+        existing.brandName === item.brandName &&
+        existing.productName === item.productName &&
+        existing.query === item.query;
+      return !sameUrl && !sameManual;
+    });
+    const next = [item, ...deduped].slice(0, 5);
+    localStorage.setItem("answerrank:recent", JSON.stringify(next));
+    return next;
+  });
 }
 
 createRoot(document.getElementById("root")!).render(
