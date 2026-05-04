@@ -134,10 +134,10 @@ function Nav({
   return (
     <nav className="ar-nav">
       <div className="ar-nav-inner">
-        <div className="ar-logo">
+        <div className="ar-logo" style={{ cursor: "pointer" }} onClick={() => { window.history.pushState({}, "", "/"); onNewReport?.(); }}>
           <div className="ar-logo-icon"><IcoTrophy /></div>
           <span className="ar-logo-text">AnswerRank</span>
-          <span className="ar-demo-badge"><IcoZap /> Demo · Gemini + Llama</span>
+          {/* <span className="ar-demo-badge" onClick={e => e.stopPropagation()}><IcoZap /> Demo · Gemini + Llama</span> */}
         </div>
         {hasResult && (
           <div className="ar-nav-actions">
@@ -205,6 +205,7 @@ function ScreenLanding({
         <div className="ar-hero">
           <div className="ar-hero-icon"><IcoTrophy /></div>
           <div className="ar-aeo-badge">AEO Diagnostic Tool</div>
+          <span className="ar-demo-badge"><IcoZap /> Demo · Gemini + Llama</span>
           <h1 className="ar-hero-h1">
             See how AI answers<br />
             <span className="ar-blue">questions about your product</span>
