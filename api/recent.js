@@ -7,10 +7,12 @@ export default async function handler(req, res) {
     return res.status(200).json({ recent: [] });
   }
 
+  const cutoff = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
   const params = new URLSearchParams({
     select: "id,brand_name,product_name,target_query,created_at",
     order: "created_at.desc",
     limit: "5",
+    created_at: `gte.${cutoff}`,
   });
 
   try {

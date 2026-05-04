@@ -643,7 +643,11 @@ function ScreenResults({
 
           <div className="ar-cache-badge">
             <p className="ar-cache-badge-title"><IcoZap />{cacheLabel}</p>
-            <p className="ar-cache-badge-sub">Generated {today}</p>
+            <p className="ar-cache-badge-sub">
+              {report.cacheStatus === "hit" && report.cacheAgeMinutes != null
+                ? `Cached ${report.cacheAgeMinutes < 60 ? `${report.cacheAgeMinutes}m` : `${Math.floor(report.cacheAgeMinutes / 60)}h ${report.cacheAgeMinutes % 60}m`} ago`
+                : `Generated ${today}`}
+            </p>
             {report.storageError && <p className="ar-cache-badge-sub">Storage: {report.storageError}</p>}
           </div>
 
@@ -851,6 +855,9 @@ function App() {
       await minWait;
       setReport(result);
       rememberSearch(nextInput, result, setRecentSearches);
+      if (result.id && result.cacheStatus !== "demo") {
+        window.history.pushState({}, "", `?reportId=${result.id}`);
+      }
       setScreen("results");
     } catch (err) {
       await minWait;
@@ -899,7 +906,7 @@ function App() {
           report={report}
           identifier={identifier}
           shareMessage={shareMessage}
-          onNewReport={() => setScreen("landing")}
+          onNewReport={() => { window.history.pushState({}, "", "/"); setScreen("landing"); }}
           onShare={handleShare}
           onExport={() => downloadReportPdf(report)}
           onRefresh={handleRefresh}
@@ -914,7 +921,9 @@ function loadRecentFromStorage(): RecentSearch[] {
     const stored = localStorage.getItem("answerrank:recent");
     if (!stored) return DEFAULT_RECENT;
     const parsed = JSON.parse(stored) as RecentSearch[];
-    return parsed.length ? parsed : DEFAULT_RECENT;
+    const cutoff = Date.now() - 12 * 60 * 60 * 1000;
+    const fresh = parsed.filter(r => r.createdAt > cutoff);
+    return fresh.length ? fresh : DEFAULT_RECENT;
   } catch {
     return DEFAULT_RECENT;
   }
