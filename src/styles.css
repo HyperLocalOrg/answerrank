@@ -428,7 +428,7 @@ button, input, textarea { font: inherit; }
 .ar-opt-title    { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
 .ar-opt-why      { font-size: 13px; color: #4B5563; line-height: 1.6; }
 .ar-opt-change   { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
-.ar-opt-priority { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; white-space: nowrap; }
+.ar-opt-priority { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; white-space: nowrap; align-self: flex-start; }
 
 /* Listing copy */
 .ar-copy-block h4           { font-size: 13px; font-weight: 700; color: var(--text); margin: 18px 0 6px; }

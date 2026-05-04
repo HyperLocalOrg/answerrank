@@ -528,23 +528,44 @@ function contentReadinessScore(product: ProductContext): number {
   return Math.round((checks.filter(Boolean).length / checks.length) * 100);
 }
 
+const EDGE_BY_CRITERION: Record<string, string> = {
+  "price transparency": "Clearer pricing and value communication",
+  "third-party testing": "Visible certifications and lab test results",
+  "ingredient quality": "Explicit sourcing and quality claims",
+  "brand trust": "Stronger brand authority signals",
+  "customer reviews": "More social proof and review volume",
+  "certifications": "Recognizable trust badges (GMP, NSF, organic)",
+  "usage instructions": "Clearer dosage and usage guidance",
+  "return policy": "More prominent satisfaction guarantee",
+  "scientific evidence": "Clinical study references or citations",
+};
+
 function buildCompetitorInsights(results: ModelResult[]) {
-  const competitors = new Map<string, { modelsMentioned: string[]; reasons: string[] }>();
+  const competitors = new Map<string, { modelsMentioned: string[]; reasons: string[]; losses: string[] }>();
   results.forEach((result) => {
     result.mentionedCompetitors.forEach((competitor) => {
-      const current = competitors.get(competitor) || { modelsMentioned: [], reasons: [] };
+      const current = competitors.get(competitor) || { modelsMentioned: [], reasons: [], losses: [] };
       current.modelsMentioned.push(result.model);
       current.reasons.push(...result.buyerCriteria.slice(0, 2));
+      current.losses.push(...result.reasonsForLoss.slice(0, 2));
       competitors.set(competitor, current);
     });
   });
 
-  return Array.from(competitors.entries()).map(([competitor, insight]) => ({
-    competitor,
-    modelsMentioned: Array.from(new Set(insight.modelsMentioned)),
-    reason: `AI responses associated this competitor with ${Array.from(new Set(insight.reasons)).join(", ") || "category trust"}.`,
-    edge: "Clearer proof, trust, or category familiarity in AI-visible language.",
-  }));
+  return Array.from(competitors.entries()).map(([competitor, insight]) => {
+    const uniqueReasons = Array.from(new Set(insight.losses.length ? insight.losses : insight.reasons));
+    const topCriterion = Array.from(new Set(insight.reasons))[0]?.toLowerCase() ?? "";
+    const edge = Object.entries(EDGE_BY_CRITERION).find(([k]) => topCriterion.includes(k))?.[1]
+      ?? `Stronger ${topCriterion || "trust"} signals in AI-visible listing language`;
+    return {
+      competitor,
+      modelsMentioned: Array.from(new Set(insight.modelsMentioned)),
+      reason: uniqueReasons.length
+        ? uniqueReasons.slice(0, 2).join(" ").trim()
+        : `AI responses associated this competitor with ${topCriterion || "category trust"}.`,
+      edge,
+    };
+  });
 }
 
 function buildRoadmap(coverage: CoverageItem[], results: ModelResult[]) {
@@ -560,7 +581,7 @@ function buildRoadmap(coverage: CoverageItem[], results: ModelResult[]) {
       results.find((result) => result.buyerCriteria.includes(item.criterion))?.summary ||
       "This criterion appeared in AI recommendation reasoning.",
     change: item.fix,
-    impact: item.impact,
+    impact: (index < 2 ? "High" : index < 4 ? "Medium" : "Low") as "High" | "Medium" | "Low",
   }));
 }
 

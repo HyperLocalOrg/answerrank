@@ -760,7 +760,7 @@ function ScreenResults({
           </Collapse>
 
           {/* Generated Listing Improvements */}
-          <Collapse title="Generated Listing Improvements" subtitle="Only use claims that are true for the product">
+          <Collapse title="Generated Listing Improvements" subtitle="Only use claims that are true for the product" defaultOpen>
             <div className="ar-copy-block">
               <h4>Optimized title</h4>
               <p>{report.listingCopy.title}</p>
