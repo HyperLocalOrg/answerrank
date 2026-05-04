@@ -89,7 +89,7 @@ export default async function handler(req, res) {
   try {
     const input = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
     const cacheKey = await makeCacheKey(input || {});
-    const cached = input?.forceRefresh ? null : await getCachedReport(cacheKey);
+    const cached = await getCachedReport(cacheKey);
 
     if (cached) {
       return res.status(200).json({
@@ -537,7 +537,7 @@ function normalizeModelResult(model, query, content) {
   }
   const allowedStrength = ["strong", "positive", "neutral", "weak", "negative"];
   const allowedEvidence = ["strong", "moderate", "weak", "none"];
-  const allowedContext  = ["top3", "mentioned", "not_mentioned"];
+  const allowedContext = ["top3", "mentioned", "not_mentioned"];
   return {
     model,
     query,
@@ -547,21 +547,21 @@ function normalizeModelResult(model, query, content) {
     recommendationStrength: allowedStrength.includes(String(parsed.recommendationStrength))
       ? parsed.recommendationStrength
       : "neutral",
-    scoreOutOf100:         typeof parsed.scoreOutOf100 === "number"          ? clamp(Math.round(parsed.scoreOutOf100), 0, 100) : 0,
-    evidenceQuality:       allowedEvidence.includes(String(parsed.evidenceQuality)) ? parsed.evidenceQuality : "weak",
-    confidence:            typeof parsed.confidence === "number"              ? clamp(parsed.confidence, 0, 1)   : 0.5,
-    relevanceScore:        typeof parsed.relevanceScore === "number"          ? clamp(Math.round(parsed.relevanceScore), 0, 100) : 0,
-    visibilityScore:       typeof parsed.visibilityScore === "number"         ? clamp(Math.round(parsed.visibilityScore), 0, 100) : 0,
-    evidenceScore:         typeof parsed.evidenceScore === "number"           ? clamp(Math.round(parsed.evidenceScore), 0, 100) : 0,
-    competitivenessScore:  typeof parsed.competitivenessScore === "number"    ? clamp(Math.round(parsed.competitivenessScore), 0, 100) : 0,
-    queryIntent:           String(parsed.queryIntent || "best"),
-    topRecommendations:    safeArray(parsed.topRecommendations).slice(0, 5),
-    mentionedCompetitors:  safeArray(parsed.mentionedCompetitors),
-    buyerCriteria:         safeArray(parsed.buyerCriteria),
-    missingSignals:        safeArray(parsed.missingSignals),
-    reasonsForLoss:        safeArray(parsed.reasonsForLoss),
-    summary:               parsed.summary || "Model returned a visibility assessment.",
-    rawAnswer:             parsed.rawAnswer || content,
+    scoreOutOf100: typeof parsed.scoreOutOf100 === "number" ? clamp(Math.round(parsed.scoreOutOf100), 0, 100) : 0,
+    evidenceQuality: allowedEvidence.includes(String(parsed.evidenceQuality)) ? parsed.evidenceQuality : "weak",
+    confidence: typeof parsed.confidence === "number" ? clamp(parsed.confidence, 0, 1) : 0.5,
+    relevanceScore: typeof parsed.relevanceScore === "number" ? clamp(Math.round(parsed.relevanceScore), 0, 100) : 0,
+    visibilityScore: typeof parsed.visibilityScore === "number" ? clamp(Math.round(parsed.visibilityScore), 0, 100) : 0,
+    evidenceScore: typeof parsed.evidenceScore === "number" ? clamp(Math.round(parsed.evidenceScore), 0, 100) : 0,
+    competitivenessScore: typeof parsed.competitivenessScore === "number" ? clamp(Math.round(parsed.competitivenessScore), 0, 100) : 0,
+    queryIntent: String(parsed.queryIntent || "best"),
+    topRecommendations: safeArray(parsed.topRecommendations).slice(0, 5),
+    mentionedCompetitors: safeArray(parsed.mentionedCompetitors),
+    buyerCriteria: safeArray(parsed.buyerCriteria),
+    missingSignals: safeArray(parsed.missingSignals),
+    reasonsForLoss: safeArray(parsed.reasonsForLoss),
+    summary: parsed.summary || "Model returned a visibility assessment.",
+    rawAnswer: parsed.rawAnswer || content,
   };
 }
 
