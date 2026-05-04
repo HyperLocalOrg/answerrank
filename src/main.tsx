@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { sampleInput, sampleReport } from "./data/sample";
 import { runAudit } from "./services/audit";
@@ -9,72 +9,65 @@ import {
   downloadReportPdf,
   loadSavedReport,
   readReportFromHash,
-  readReportIdFromUrl,
 } from "./utils/export";
-import { loadRecentFromStorage, relativeTime, rememberSearch } from "./utils/recent";
+import { relativeTime } from "./utils/recent";
 import type { RecentSearch } from "./utils/recent";
 import LandingPage from "./pages/LandingPage";
-import LoadingPage from "./pages/LoadingPage";
 import ResultsPage from "./pages/ResultsPage";
 import "./styles.css";
 
 // ── App Root ──────────────────────────────────────────────────────────────────
 function App() {
   const route = useRouter();
+  const auditInFlight = useRef(false);
 
-  const [screen, setScreen] = useState<"landing" | "loading" | "results">(() => {
-    if (readReportIdFromUrl()) return "loading";
-    const shared = readReportFromHash();
-    if (shared) return "results";
-    return "landing";
-  });
+  const [screen, setScreen] = useState<"landing" | "report">(() =>
+    route.name === "report" ? "report" : "landing"
+  );
+  const [loading, setLoading] = useState(() => route.name === "report");
   const [report, setReport] = useState<AuditReport>(() => readReportFromHash() ?? sampleReport);
   const [input, setInput] = useState<AuditInput>(sampleInput);
   const [identifier, setIdentifier] = useState("");
   const [error, setError] = useState("");
   const [shareMessage, setShareMessage] = useState("");
-  const [recentSearches, setRecentSearches] = useState<RecentSearch[]>(() => loadRecentFromStorage());
+  const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
 
-  // On mount: load report from URL if present
-  useEffect(() => {
-    const reportId = readReportIdFromUrl();
-    if (reportId) {
-      loadSavedReport(reportId)
-        .then(r => { setReport(r); setScreen("results"); })
-        .catch(() => { setError("Saved report could not be loaded."); setScreen("landing"); });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // React to route changes (back/forward navigation)
-  useEffect(() => {
-    if (route.name !== "report") {
-      // Navigated back to landing
-      if (screen === "results") setScreen("landing");
-      return;
-    }
-    // Already have this report loaded — skip refetch
-    if (screen === "results" && report.id === route.reportId) return;
-    setScreen("loading");
-    loadSavedReport(route.reportId)
-      .then(r => { setReport(r); setScreen("results"); })
-      .catch(() => { setError("Report not found."); navigation.toLanding(); setScreen("landing"); });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [route]);
-
-  // Load recent searches from DB; fall back to localStorage silently
-  useEffect(() => {
+  function fetchRecent() {
     fetch("/api/recent")
       .then(r => r.json())
       .then((data: { recent?: Omit<RecentSearch, "time">[] }) => {
         if (data.recent?.length) {
-          const withTime = data.recent.map(r => ({ ...r, time: relativeTime(r.createdAt) }));
-          setRecentSearches(withTime);
-          localStorage.setItem("answerrank:recent", JSON.stringify(withTime));
+          setRecentSearches(data.recent.map(r => ({ ...r, time: relativeTime(r.createdAt) })));
         }
       })
-      .catch(() => {/* stay with localStorage */ });
-  }, []);
+      .catch(() => {});
+  }
+
+  // Initial recent fetch
+  useEffect(() => { fetchRecent(); }, []);
+
+  // React to URL route changes (browser back/forward)
+  useEffect(() => {
+    if (route.name === "landing") {
+      setScreen("landing");
+      fetchRecent(); // refresh list when returning to landing
+      return;
+    }
+
+    // route.name === "report"
+    if (auditInFlight.current) return; // handleSubmit owns state during an active audit
+    if (!loading && report.id === route.reportId) return; // already showing this report
+
+    setScreen("report");
+    setLoading(true);
+    loadSavedReport(route.reportId)
+      .then(r => { setReport(r); setLoading(false); })
+      .catch(() => {
+        setError("Report could not be loaded.");
+        navigation.toLanding();
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route]);
 
   async function handleSubmit(partial: Partial<AuditInput>) {
     const nextInput: AuditInput = { ...sampleInput, ...partial };
@@ -86,29 +79,39 @@ function App() {
     setIdentifier(id);
     setError("");
     setShareMessage("");
-    setScreen("loading");
+
+    // Push report URL immediately — loading shows at /?reportId=<temp>
+    const tempId = crypto.randomUUID();
+    auditInFlight.current = true;
+    navigation.toReport(tempId);
+    setScreen("report");
+    setLoading(true);
 
     const minWait = new Promise<void>(r => setTimeout(r, 4800));
     try {
       const result = await runAudit(nextInput);
       await minWait;
       setReport(result);
-      rememberSearch(nextInput, result, setRecentSearches);
       if (result.id && result.cacheStatus !== "demo") {
-        navigation.toReport(result.id);
+        navigation.replaceReport(result.id);
       }
-      setScreen("results");
+      setLoading(false);
     } catch (err) {
       await minWait;
       setError(err instanceof Error ? err.message : "Audit failed. Try demo mode or check API keys.");
+      navigation.toLanding();
       setScreen("landing");
+    } finally {
+      auditInFlight.current = false;
     }
   }
 
   async function handleRefresh() {
     setError("");
     setShareMessage("");
-    setScreen("loading");
+    setLoading(true);
+    auditInFlight.current = true;
+
     const minWait = new Promise<void>(r => setTimeout(r, 4800));
     try {
       const result = await runAudit({ ...input, liveMode: true, forceRefresh: true });
@@ -117,11 +120,13 @@ function App() {
       if (result.id && result.cacheStatus !== "demo") {
         navigation.replaceReport(result.id);
       }
-      setScreen("results");
+      setLoading(false);
     } catch (err) {
       await minWait;
       setError(err instanceof Error ? err.message : "Refresh failed.");
-      setScreen("results");
+      setLoading(false);
+    } finally {
+      auditInFlight.current = false;
     }
   }
 
@@ -137,7 +142,6 @@ function App() {
 
   function handleNewReport() {
     navigation.toLanding();
-    setScreen("landing");
   }
 
   return (
@@ -145,11 +149,9 @@ function App() {
       {screen === "landing" && (
         <LandingPage onSubmit={handleSubmit} error={error} recentSearches={recentSearches} />
       )}
-      {screen === "loading" && (
-        <LoadingPage identifier={identifier} />
-      )}
-      {screen === "results" && (
+      {screen === "report" && (
         <ResultsPage
+          loading={loading}
           report={report}
           identifier={identifier}
           shareMessage={shareMessage}
