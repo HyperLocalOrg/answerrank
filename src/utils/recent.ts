@@ -1,4 +1,5 @@
 export type RecentSearch = {
+  reportId?: string;
   product: string;
   url?: string;
   brandName?: string;

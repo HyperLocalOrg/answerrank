@@ -30,16 +30,14 @@ The product is designed for ecommerce operators, not researchers. The output is 
 
 ## APIs And Tools
 
-Live mode supports:
+ supports:
 
 - OpenAI API for model visibility analysis
-- Gemini API for a second AI engine perspective
 - Groq API for a low-cost Llama-based second model
 - Firecrawl API for product page scraping
 - Supabase for saved shareable reports
 - Vercel serverless functions for secure API calls
 
-Demo mode runs without API keys, so evaluators can use the product immediately.
 
 ## Lightweight ML
 
@@ -155,8 +153,6 @@ Gemini
 Groq
   - secondary low-cost Llama model, default llama-3.1-8b-instant
 
-OpenAI
-  - optional model for stronger analysis, default gpt-4o-mini
 
 Firecrawl
   - scrapes product pages when a URL is provided
@@ -212,3 +208,5 @@ The product is not “I queried some LLMs.”
 The product is:
 
 > Amazon sellers are optimizing for search results, but product discovery is moving into AI-generated answers. AnswerRank shows whether AI recommends your product, why competitors win, and gives you a practical roadmap to become more recommendable.
+
+[Watch demo](https://drive.google.com/file/d/1gyr-ntvZh0h6y54YQhPnAKDn-A9eqEk-/view?usp=sharing)

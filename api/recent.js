@@ -9,7 +9,7 @@ export default async function handler(req, res) {
 
   const cutoff = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
   const params = new URLSearchParams({
-    select: "id,brand_name,product_name,target_query,created_at",
+    select: "id,brand_name,product_name,product_url,target_query,created_at",
     order: "created_at.desc",
     limit: "5",
     created_at: `gte.${cutoff}`,
@@ -30,7 +30,9 @@ export default async function handler(req, res) {
 
     const rows = await response.json();
     const recent = rows.map((row) => ({
+      reportId: row.id || undefined,
       product: row.product_name || row.brand_name || "Unknown product",
+      url: row.product_url || undefined,
       brandName: row.brand_name || undefined,
       productName: row.product_name || undefined,
       query: row.target_query || "",

@@ -144,10 +144,38 @@ function App() {
     navigation.toLanding();
   }
 
+  async function handleRecentClick(r: RecentSearch) {
+    if (r.reportId) {
+      setError("");
+      setShareMessage("");
+      setScreen("report");
+      setLoading(true);
+      navigation.toReport(r.reportId);
+      try {
+        const saved = await loadSavedReport(r.reportId);
+        setReport(saved);
+        setIdentifier(r.url || `${r.brandName ?? ""} – ${r.productName ?? ""}`.trim());
+        setLoading(false);
+      } catch {
+        setError("Report could not be loaded.");
+        navigation.toLanding();
+        setScreen("landing");
+      }
+    } else {
+      handleSubmit({
+        productUrl: r.url || "",
+        brandName: r.brandName || "",
+        productName: r.productName || r.product,
+        targetQuery: r.query,
+        liveMode: true,
+      });
+    }
+  }
+
   return (
     <>
       {screen === "landing" && (
-        <LandingPage onSubmit={handleSubmit} error={error} recentSearches={recentSearches} />
+        <LandingPage onSubmit={handleSubmit} onRecentClick={handleRecentClick} error={error} recentSearches={recentSearches} />
       )}
       {screen === "report" && (
         <ResultsPage

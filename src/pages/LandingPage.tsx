@@ -6,10 +6,12 @@ import type { AuditInput } from "../types";
 
 export default function LandingPage({
   onSubmit,
+  onRecentClick,
   error,
   recentSearches,
 }: {
   onSubmit: (partial: Partial<AuditInput>) => void;
+  onRecentClick: (r: RecentSearch) => void;
   error: string;
   recentSearches: RecentSearch[];
 }) {
@@ -38,13 +40,7 @@ export default function LandingPage({
   }
 
   function handleRecent(r: RecentSearch) {
-    onSubmit({
-      productUrl: r.url || "",
-      brandName: r.brandName || "",
-      productName: r.productName || r.product,
-      targetQuery: r.query,
-      liveMode: liveMode,
-    });
+    onRecentClick(r);
   }
 
   return (
